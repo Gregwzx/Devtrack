@@ -1,41 +1,39 @@
 # 📱 DevTrack Mobile
 
-DevTrack é um aplicativo mobile focado em acompanhar a evolução profissional de desenvolvedores e estudantes de tecnologia através do registro diário de aprendizado, streaks de consistência e métricas de progresso.
+DevTrack é um aplicativo mobile focado em acompanhar a evolução profissional de estudantes e desenvolvedores através do registro diário de aprendizado, consistência de estudos e métricas pessoais de progresso.
 
-A ideia principal é transformar estudo em algo visual, motivador e mensurável — como um "GitHub da evolução pessoal".
+O objetivo do app é funcionar como um **tracker pessoal de evolução**, ajudando o usuário a visualizar o quanto está aprendendo ao longo do tempo — sem elementos de rede social, mantendo foco total no crescimento individual.
 
 ---
 
 ## 🚀 Objetivo do Projeto
 
-Muitos estudantes aprendem todos os dias, mas não conseguem visualizar sua evolução ao longo do tempo. O DevTrack foi criado para resolver isso, permitindo que o usuário registre o que aprendeu e acompanhe seu crescimento de forma clara e motivadora.
+Muitos estudantes aprendem todos os dias, mas não conseguem medir sua evolução. O DevTrack foi criado para transformar aprendizado em algo visível, motivador e contínuo, incentivando consistência através de dados e feedback inteligente.
 
 ---
 
 ## ✨ Funcionalidades
 
-### ✅ Já implementado
+### ✅ Implementado
 
-* 📊 Dashboard (Home)
+* 📊 Dashboard (Home) com visão geral do progresso
 * 🔥 Sistema de streak (dias consecutivos estudando)
-* 🧠 Registro "Aprendi Hoje"
-* 👤 Página de perfil do usuário
+* 🧠 Registro diário "Aprendi Hoje"
+* 👤 Página de perfil com estatísticas pessoais
 * 🎨 Interface moderna focada em produtividade
 
 ### 🚧 Em desenvolvimento
 
-* 🤖 Sugestões inteligentes de aprendizado (IA - Gemini 1.5 Flash)
-* 🏆 Página de ranking
-* 👥 Sistema de amigos
-* 📰 Feed social de aprendizado
+* 🔐 Login com Google
+* 🤖 Sugestões inteligentes de estudo usando IA (Gemini 1.5 Flash)
+* 💾 Persistência de dados do usuário
 
-### 💡 Planejado (Roadmap)
+### 💡 Planejado
 
-* 📅 Heatmap de estudos estilo GitHub
-* ☁️ Persistência de dados (Firebase / Supabase)
-* 🔔 Notificações de incentivo
+* 📅 Heatmap de aprendizado estilo GitHub
 * 🎯 Metas semanais e mensais
-* ✨ Animações e melhorias de UX
+* 🔔 Lembretes e notificações motivacionais
+* 📈 Estatísticas avançadas de evolução
 
 ---
 
@@ -44,8 +42,8 @@ Muitos estudantes aprendem todos os dias, mas não conseguem visualizar sua evol
 * React Native
 * Expo
 * TypeScript
-* JavaScript (ES6+)
-* AsyncStorage (planejado)
+* Firebase Authentication (planejado)
+* AsyncStorage / Backend (planejado)
 * API Gemini (IA para sugestões)
 
 ---
@@ -70,7 +68,9 @@ npx expo start
 
 ## 🧠 Conceito do Produto
 
-O DevTrack não é apenas um app de tarefas. Ele funciona como uma plataforma de evolução profissional, incentivando consistência, aprendizado contínuo e construção de hábitos através de métricas visuais e gamificação.
+O DevTrack funciona como um "GitHub da evolução pessoal", permitindo que o usuário registre aprendizados, acompanhe sua consistência e receba sugestões inteligentes para continuar evoluindo.
+
+O foco do projeto é simplicidade, clareza e motivação através de progresso real — sem distrações sociais.
 
 ---
 
@@ -78,24 +78,23 @@ O DevTrack não é apenas um app de tarefas. Ele funciona como uma plataforma de
 
 🚧 Em desenvolvimento ativo.
 
-Este projeto faz parte do portfólio pessoal e também está sendo desenvolvido como proposta de projeto acadêmico.
+Este projeto faz parte do portfólio pessoal e também está sendo desenvolvido como proposta acadêmica.
 
 ---
 
 ## 👨‍💻 Autor
 
-Desenvolvido por Jailson Ferreira (Greg).
+Desenvolvido por Jailson Ferreira.
 
 ---
 
-## ⭐ Futuras Melhorias
+## ⭐ Próximos Passos
 
-* Integração completa com backend
-* Sistema social completo
-* Ranking global
-* Perfil público compartilhável
-* Estatísticas avançadas de evolução
+* Implementar autenticação
+* Salvar progresso do usuário
+* Integrar IA para recomendações
+* Adicionar visualização de consistência (heatmap)
 
 ---
 
-Se você gostou do projeto, considere deixar uma ⭐ no repositório!
+Se você gostou do projeto, considere deixar uma ⭐ 
