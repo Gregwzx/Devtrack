@@ -1,48 +1,50 @@
-import { Tabs } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+// app/_layout.tsx
+import { DarkTheme, ThemeProvider } from '@react-navigation/native';
+import { Stack, router } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import { useEffect, useState } from 'react';
+import { View } from 'react-native';
+import 'react-native-reanimated';
 
-export default function TabsLayout() {
-  return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarStyle: {
-          backgroundColor: '#0d0d10',
-          borderTopColor: '#2a2040',
-        },
-        tabBarActiveTintColor: '#8b5cf6',
-        tabBarInactiveTintColor: '#6b6880',
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home" size={size} color={color} />
-          ),
-        }}
-      />
+import { AuthProvider, useAuth } from '@/src/context/AuthContext';
+import SplashScreen from '@/src/screens/SplashScreen';
 
-      <Tabs.Screen
-        name="feed"
-        options={{
-          title: 'Feed',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="compass" size={size} color={color} />
-          ),
-        }}
-      />
+function InnerLayout() {
+    const { user, loading } = useAuth();
+    const [splashDone, setSplashDone] = useState(false);
 
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: 'Perfil',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person" size={size} color={color} />
-          ),
-        }}
-      />
-    </Tabs>
-  );
+    useEffect(() => {
+        if (!loading && splashDone) {
+            if (user) {
+                router.replace('/(tabs)');
+            } else {
+                router.replace('/login');
+            }
+        }
+    }, [user, loading, splashDone]);
+
+    return (
+        <View style={{ flex: 1 }}>
+            <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="(tabs)" />
+                <Stack.Screen name="login" />
+            </Stack>
+            {(!splashDone || loading) && (
+                <SplashScreen onFinish={() => setSplashDone(true)} />
+            )}
+        </View>
+    );
+}
+
+export const unstable_settings = { anchor: '(tabs)' };
+
+export default function RootLayout() {
+    return (
+        <AuthProvider>
+            <ThemeProvider value={DarkTheme}>
+                <InnerLayout />
+                <StatusBar style="light" />
+            </ThemeProvider>
+        </AuthProvider>
+    );
 }

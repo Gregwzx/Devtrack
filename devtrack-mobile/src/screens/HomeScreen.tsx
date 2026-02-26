@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
     ScrollView,
-    SafeAreaView,
     StyleSheet,
     View,
     Text,
@@ -9,8 +8,8 @@ import {
     Modal,
     TextInput,
     Pressable,
-    Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, {
     FadeInDown,
     FadeInUp,
@@ -116,7 +115,6 @@ function StreakSection({ streak }: { streak: number }) {
                 onPressOut={() => (scale.value = withSpring(1))}
             >
                 <Animated.View style={[styles.streakCard, pressStyle]}>
-                    {/* Glow background */}
                     <Animated.View style={[styles.streakGlow, glowStyle]} />
 
                     <Animated.View style={[styles.streakCircle, pulseStyle]}>
@@ -331,7 +329,7 @@ export default function HomeScreen() {
     };
 
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
             <Animated.View entering={FadeInUp.duration(400)} style={styles.header}>
                 <Text style={styles.headerGreeting}>Olá, Dev 👋</Text>
                 <Text style={styles.headerDate}>

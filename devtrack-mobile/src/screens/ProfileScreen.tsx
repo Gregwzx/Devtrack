@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     ScrollView,
-    SafeAreaView,
     StyleSheet,
     View,
     Text,
@@ -13,6 +12,7 @@ import {
     Alert,
     Linking,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, {
     FadeInDown,
     FadeInUp,
@@ -135,7 +135,7 @@ function EditProfileModal({
 
     return (
         <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-            <SafeAreaView style={editStyles.container}>
+            <SafeAreaView style={editStyles.container} edges={['top', 'left', 'right']}>
                 <View style={editStyles.header}>
                     <TouchableOpacity onPress={onClose}>
                         <Text style={editStyles.cancel}>Cancelar</Text>
@@ -146,7 +146,6 @@ function EditProfileModal({
                     </TouchableOpacity>
                 </View>
 
-                {/* Tab bar */}
                 <View style={editStyles.tabs}>
                     {(['info', 'links', 'banner'] as const).map((t) => (
                         <TouchableOpacity
@@ -409,7 +408,7 @@ export default function ProfileScreen() {
         .toUpperCase();
 
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
             <ScrollView showsVerticalScrollIndicator={false}>
                 {/* ── Banner ── */}
                 <Animated.View entering={FadeInUp.duration(400)}>
@@ -437,7 +436,6 @@ export default function ProfileScreen() {
                             </View>
                         )}
 
-                        {/* Streak badge */}
                         <View style={styles.streakBadge}>
                             <Text style={styles.streakBadgeText}>🔥 {streak}</Text>
                         </View>
@@ -735,10 +733,7 @@ const styles = StyleSheet.create({
         borderColor: '#2a2040',
     },
     projectImage: { width: '100%', height: 120 },
-    projectLabel: {
-        padding: 8,
-        backgroundColor: '#16151d',
-    },
+    projectLabel: { padding: 8, backgroundColor: '#16151d' },
     projectLabelText: { color: '#d4d0e8', fontSize: 12, fontWeight: '600' },
 
     emptyProjects: {
@@ -753,7 +748,6 @@ const styles = StyleSheet.create({
     emptyProjectsIcon: { fontSize: 32, marginBottom: 10 },
     emptyProjectsText: { color: '#6b6880', fontSize: 13, textAlign: 'center', lineHeight: 20 },
 
-    // Streak card
     streakCard: {
         backgroundColor: '#16151d',
         borderRadius: 20,
@@ -818,15 +812,8 @@ const editStyles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: '#2a2040',
     },
-    tab: {
-        flex: 1,
-        paddingVertical: 12,
-        alignItems: 'center',
-    },
-    tabActive: {
-        borderBottomWidth: 2,
-        borderBottomColor: '#8b5cf6',
-    },
+    tab: { flex: 1, paddingVertical: 12, alignItems: 'center' },
+    tabActive: { borderBottomWidth: 2, borderBottomColor: '#8b5cf6' },
     tabText: { color: '#7a7590', fontSize: 14, fontWeight: '600' },
     tabTextActive: { color: '#8b5cf6' },
     body: { padding: 16, paddingBottom: 40 },
