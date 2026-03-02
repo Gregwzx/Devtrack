@@ -1,31 +1,50 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
+import { DarkTheme, ThemeProvider } from '@react-navigation/native';
+import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import 'react-native-reanimated';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import SplashScreen from '@/src/screens/SplashScreen';
+import { AuthProvider, useAuth } from '../src/context/AuthContext';
+import SplashScreen from '../src/screens/SplashScreen';
 
-export const unstable_settings = {
-  anchor: '(tabs)',
-};
+function InnerLayout() {
+    const { user, loading } = useAuth();
+    const [splashDone, setSplashDone] = useState(false);
+
+    useEffect(() => {
+        if (!loading && splashDone) {
+            if (user) {
+                router.replace('/(tabs)');
+            } else {
+                router.replace('/login');
+            }
+        }
+    }, [user, loading, splashDone]);
+
+    return (
+        <View style={{ flex: 1 }}>
+            <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="(tabs)" />
+                <Stack.Screen name="login" />
+                <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+            </Stack>
+            {(!splashDone || loading) && (
+                <SplashScreen onFinish={() => setSplashDone(true)} />
+            )}
+        </View>
+    );
+}
+
+export const unstable_settings = { anchor: '(tabs)' };
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-  const [splashDone, setSplashDone] = useState(false);
-
-  return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <View style={{ flex: 1 }}>
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-        </Stack>
-        {!splashDone && <SplashScreen onFinish={() => setSplashDone(true)} />}
-      </View>
-      <StatusBar style="auto" />
-    </ThemeProvider>
-  );
+    return (
+        <AuthProvider>
+            <ThemeProvider value={DarkTheme}>
+                <InnerLayout />
+                <StatusBar style="light" />
+            </ThemeProvider>
+        </AuthProvider>
+    );
 }
