@@ -5,12 +5,30 @@ import {
     getDoc,
     updateDoc,
     serverTimestamp,
+    collection,
+    query,
+    orderBy,
+    limit,
+    getDocs,
 } from 'firebase/firestore';
 import { User } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { db } from './firebase';
+import type { StudyArea } from './ai.service';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+export interface Learning {
+    id: string;
+    text: string;
+    date: string;
+}
+
+export interface SocialLink {
+    id: string;
+    label: string;
+    url: string;
+}
+
 export interface UserData {
     uid: string;
     name: string;
@@ -23,58 +41,65 @@ export interface UserData {
     learnings: Learning[];
     totalHours: number;
     skills: number;
+    studyArea: StudyArea;
+    bannerColor: string;
+    links: SocialLink[];
     createdAt?: any;
     updatedAt?: any;
 }
 
-export interface Learning {
-    id: string;
-    text: string;
-    date: string;
+export interface RankingUser {
+    uid: string;
+    name: string;
+    username: string;
+    streak: number;
+    learnings: number;
+    studyArea: StudyArea;
+    isYou?: boolean;
 }
 
-// ─── AsyncStorage keys (cache local) ─────────────────────────────────────────
+// ─── Cache ────────────────────────────────────────────────────────────────────
 const CACHE_KEY = 'DEVTRACK_USER_CACHE';
 
 // ─── Criar / Atualizar perfil no Firestore ────────────────────────────────────
 export async function createOrUpdateUserProfile(firebaseUser: User): Promise<void> {
-    const ref = doc(db, 'users', firebaseUser.uid);
+    const ref  = doc(db, 'users', firebaseUser.uid);
     const snap = await getDoc(ref);
 
     if (!snap.exists()) {
-        // Primeira vez — cria o documento
         const newUser: UserData = {
-            uid: firebaseUser.uid,
-            name: firebaseUser.displayName ?? 'Dev',
-            username: `@${(firebaseUser.displayName ?? 'dev').toLowerCase().replace(/\s/g, '')}`,
-            email: firebaseUser.email ?? '',
-            photoURL: firebaseUser.photoURL,
-            bio: '',
-            streak: 0,
+            uid:            firebaseUser.uid,
+            name:           firebaseUser.displayName ?? 'Dev',
+            username:       `@${(firebaseUser.displayName ?? 'dev').toLowerCase().replace(/\s/g, '')}`,
+            email:          firebaseUser.email ?? '',
+            photoURL:       firebaseUser.photoURL,
+            bio:            '',
+            streak:         0,
             lastStreakDate: null,
-            learnings: [],
-            totalHours: 0,
-            skills: 0,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
+            learnings:      [],
+            totalHours:     0,
+            skills:         0,
+            studyArea:      'fullstack',
+            bannerColor:    '#1a1040',
+            links:          [],
+            createdAt:      serverTimestamp(),
+            updatedAt:      serverTimestamp(),
         };
         await setDoc(ref, newUser);
         await cacheLocally(newUser);
     } else {
-        // Já existe — só atualiza updatedAt e foto
         await updateDoc(ref, {
-            photoURL: firebaseUser.photoURL,
+            photoURL:  firebaseUser.photoURL,
             updatedAt: serverTimestamp(),
         });
-        const data = snap.data() as UserData;
-        await cacheLocally(data);
+        await cacheLocally(snap.data() as UserData);
     }
 }
 
 // ─── Busca dados do usuário ───────────────────────────────────────────────────
 export async function getUserData(uid: string): Promise<UserData | null> {
     try {
-        const ref = doc(db, 'users', uid);
+        const ref  = doc(db, 'users', uid);
         const snap = await getDoc(ref);
         if (snap.exists()) {
             const data = snap.data() as UserData;
@@ -82,11 +107,25 @@ export async function getUserData(uid: string): Promise<UserData | null> {
             return data;
         }
         return null;
-    } catch (error) {
-        // Se offline, retorna cache
+    } catch {
         console.warn('Firestore offline, usando cache local');
         return getLocalCache();
     }
+}
+
+// ─── Salva perfil completo ────────────────────────────────────────────────────
+export async function saveProfile(uid: string, profile: Partial<UserData>): Promise<void> {
+    try {
+        const ref = doc(db, 'users', uid);
+        await updateDoc(ref, { ...profile, updatedAt: serverTimestamp() });
+    } catch {
+        console.warn('Erro ao salvar perfil no Firestore, mantendo local');
+    }
+    // Always persist locally too
+    const raw   = await AsyncStorage.getItem(CACHE_KEY);
+    const local = raw ? JSON.parse(raw) : {};
+    await AsyncStorage.setItem(CACHE_KEY, JSON.stringify({ ...local, ...profile }));
+    await AsyncStorage.setItem('DEVTRACK_PROFILE', JSON.stringify(profile));
 }
 
 // ─── Salva streak ─────────────────────────────────────────────────────────────
@@ -94,10 +133,9 @@ export async function saveStreak(uid: string, streak: number, lastDate: string):
     try {
         const ref = doc(db, 'users', uid);
         await updateDoc(ref, { streak, lastStreakDate: lastDate, updatedAt: serverTimestamp() });
-    } catch (error) {
-        console.warn('Erro ao salvar streak no Firestore, mantendo local');
+    } catch {
+        console.warn('Erro ao salvar streak no Firestore');
     }
-    // Sempre salva local também
     await AsyncStorage.setItem('DEVTRACK_STREAK', JSON.stringify({ count: streak, lastDate }));
 }
 
@@ -106,24 +144,51 @@ export async function saveLearnings(uid: string, learnings: Learning[]): Promise
     try {
         const ref = doc(db, 'users', uid);
         await updateDoc(ref, { learnings, updatedAt: serverTimestamp() });
-    } catch (error) {
-        console.warn('Erro ao salvar learnings no Firestore, mantendo local');
+    } catch {
+        console.warn('Erro ao salvar learnings no Firestore');
     }
     await AsyncStorage.setItem('DEVTRACK_LEARNINGS', JSON.stringify(learnings));
 }
 
-// ─── Salva perfil ─────────────────────────────────────────────────────────────
-export async function saveProfile(uid: string, profile: Partial<UserData>): Promise<void> {
+// ─── Salva área de estudo ─────────────────────────────────────────────────────
+export async function saveStudyArea(uid: string, area: StudyArea): Promise<void> {
     try {
         const ref = doc(db, 'users', uid);
-        await updateDoc(ref, { ...profile, updatedAt: serverTimestamp() });
-    } catch (error) {
-        console.warn('Erro ao salvar perfil no Firestore, mantendo local');
+        await updateDoc(ref, { studyArea: area, updatedAt: serverTimestamp() });
+    } catch {
+        console.warn('Erro ao salvar studyArea no Firestore');
     }
-    await AsyncStorage.setItem('DEVTRACK_PROFILE', JSON.stringify(profile));
+    await AsyncStorage.setItem('DEVTRACK_STUDY_AREA', area);
 }
 
-// ─── Cache local helpers ──────────────────────────────────────────────────────
+// ─── Ranking global ───────────────────────────────────────────────────────────
+export async function getGlobalRanking(
+    currentUid: string,
+    sortBy: 'streak' | 'learnings' = 'streak',
+): Promise<RankingUser[]> {
+    try {
+        const q    = query(collection(db, 'users'), orderBy('streak', 'desc'), limit(50));
+        const snap = await getDocs(q);
+        const users: RankingUser[] = snap.docs.map(d => {
+            const data = d.data() as UserData;
+            return {
+                uid:        data.uid,
+                name:       data.name,
+                username:   data.username,
+                streak:     data.streak ?? 0,
+                learnings:  data.learnings?.length ?? 0,
+                studyArea:  data.studyArea ?? 'fullstack',
+                isYou:      data.uid === currentUid,
+            };
+        });
+        return users.sort((a, b) => b[sortBy] - a[sortBy]);
+    } catch (err) {
+        console.warn('Erro ao buscar ranking:', err);
+        return [];
+    }
+}
+
+// ─── Cache helpers ────────────────────────────────────────────────────────────
 async function cacheLocally(data: UserData): Promise<void> {
     await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(data));
 }

@@ -1,4 +1,3 @@
-// src/services/authService.ts
 import {
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
