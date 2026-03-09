@@ -1,18 +1,11 @@
 <p align="center">
-  <img src="assets/icon.png" width="120" alt="DevTrack Logo"/>
+  <img src="icon.png" width="120" alt="DevTrack Logo"/>
 </p>
 
 <h1 align="center">DevTrack</h1>
 
 <p align="center">
 Track your learning. Build consistency. Visualize your evolution.
-</p>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/React%20Native-Mobile-blue"/>
-  <img src="https://img.shields.io/badge/Expo-Framework-black"/>
-  <img src="https://img.shields.io/badge/TypeScript-Language-blue"/>
-  <img src="https://img.shields.io/badge/status-in%20development-orange"/>
 </p>
 
 ---
