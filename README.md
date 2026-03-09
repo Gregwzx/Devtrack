@@ -1,110 +1,142 @@
 <p align="center">
-  <img src="./icon.png" width="120" alt="DevTrack Logo"/>
+  <img src="https://raw.githubusercontent.com/Gregwzx/Devtrack/main/devtrack-mobile/assets/icon.png" width="120" alt="DevTrack Logo"/>
 </p>
 
 <h1 align="center">DevTrack</h1>
 
 <p align="center">
-Track your learning. Build consistency. Visualize your evolution.
+Acompanhe seu aprendizado. Construa consistência. Visualize sua evolução.
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/React%20Native-Mobile-blue"/>
   <img src="https://img.shields.io/badge/Expo-Framework-black"/>
   <img src="https://img.shields.io/badge/TypeScript-Language-blue"/>
-  <img src="https://img.shields.io/badge/status-in%20development-orange"/>
+  <img src="https://img.shields.io/badge/status-em%20desenvolvimento-orange"/>
 </p>
 
 ---
 
-# 📱 About DevTrack
+# 📱 Sobre o DevTrack
 
-**DevTrack** is a mobile application designed to help students and developers **track their professional growth through daily learning logs and consistency metrics**.
+**DevTrack** é um aplicativo mobile criado para ajudar estudantes e desenvolvedores a **acompanhar sua evolução profissional através do registro diário de aprendizado e métricas de consistência**.
 
-Instead of focusing on social networking, the app focuses entirely on **personal progress and self-improvement**.
+Diferente de plataformas focadas em rede social, o DevTrack tem como objetivo **focar totalmente no progresso individual**.
 
-The goal is simple:
+A ideia é simples:
 
-> Turn daily learning into visible progress.
+> Transformar aprendizado diário em progresso visível.
 
-DevTrack allows users to record what they learned each day and track their development through streaks, statistics, and intelligent insights.
-
----
-
-# 🚀 The Idea
-
-Many developers study every day but rarely see **how much they have improved over time**.
-
-DevTrack was created to transform learning into:
-
-- 📊 measurable progress  
-- 🔥 consistency streaks  
-- 📅 visual learning history  
-- 🧠 structured knowledge logs  
-
-Think of it as a:
-
-> **"GitHub for personal learning evolution."**
+Com o DevTrack, o usuário pode registrar o que aprendeu, acompanhar sua consistência e visualizar sua evolução ao longo do tempo.
 
 ---
 
-# ✨ Features
+# 🚀 A Ideia
 
-## ✅ Implemented
+Muitos desenvolvedores estudam todos os dias, mas raramente conseguem **ver o quanto evoluíram ao longo do tempo**.
 
-- 📊 **Progress Dashboard**
-- 🔥 **Study Streak System**
-- 🧠 **Daily Learning Log ("What I Learned Today")**
-- 👤 **Profile with Personal Statistics**
-- 📅 **GitHub-style Learning Heatmap**
-- 🎨 **Clean productivity-focused UI**
+O DevTrack foi criado para transformar aprendizado em:
 
----
+- 📊 progresso mensurável  
+- 🔥 streaks de consistência  
+- 📅 histórico visual de aprendizado  
+- 🧠 registro estruturado de conhecimento  
 
-## 🚧 In Development
+Podemos pensar nele como um:
 
-- 🔐 Google Authentication
-- 💾 User data persistence
-- 🤖 AI-powered learning suggestions (Gemini 1.5 Flash)
+> **"GitHub da evolução pessoal."**
 
 ---
 
-## 💡 Planned
+# ✨ Funcionalidades
 
-- 🎯 Weekly and monthly learning goals
-- 🔔 Smart reminders and motivation notifications
-- 📈 Advanced evolution analytics
-- 🧠 AI-generated study insights
+## ✅ Implementado
+
+- 📊 **Dashboard de progresso**
+- 🔥 **Sistema de streak (dias consecutivos estudando)**
+- 🧠 **Registro diário "O que aprendi hoje"**
+- 👤 **Perfil com estatísticas pessoais**
+- 📅 **Heatmap de aprendizado estilo GitHub**
+- 🎨 **Interface moderna focada em produtividade**
+
+---
+
+## 🚧 Em desenvolvimento
+
+- 🔐 Login com Google
+- 💾 Persistência de dados do usuário
+- 🤖 Sugestões inteligentes de estudo com IA (Gemini)
+
+---
+
+## 💡 Planejado
+
+- 🎯 Metas semanais e mensais
+- 🔔 Notificações e lembretes motivacionais
+- 📈 Estatísticas avançadas de evolução
+- 🧠 Insights de aprendizado gerados por IA
 
 ---
 
 # 📸 Screenshots
 
 <p align="center">
-<img src="screenshots/home.png" width="250"/>
-<img src="screenshots/profile.png" width="250"/>
+  <img src="screenshots/home.png" width="250"/>
+  <img src="screenshots/profile.png" width="250"/>
 </p>
 
 ---
 
-# 🧱 Tech Stack
+# 🧱 Tecnologias Utilizadas
 
-DevTrack is built using modern mobile technologies.
+O DevTrack foi desenvolvido utilizando tecnologias modernas de desenvolvimento mobile.
 
 - **React Native**
 - **Expo**
 - **TypeScript**
-- **Firebase Authentication** *(planned)*
-- **AsyncStorage / Backend** *(planned)*
-- **Google Gemini API** *(AI suggestions)*
+- **Firebase Authentication (planejado)**
+- **AsyncStorage / Backend (planejado)**
+- **Google Gemini API (sugestões com IA)**
 
-> ⚠️ Currently the AI data is mocked because the API key only works in the APK version.
+⚠️ Atualmente os dados da IA estão **mockados**, pois a API Key funciona apenas na versão APK do aplicativo.
 
 ---
 
-# ⚙️ Running the Project
+🧠 Filosofia do Produto
 
-Clone the repository
+O DevTrack foi criado com base em três princípios:
 
-```bash
-git clone https://github.com/Gregwzx/Devtrack.git
+Consistência
+
+Aprender um pouco todos os dias gera evolução real.
+
+Visibilidade
+
+O progresso precisa ser visível para manter a motivação.
+
+Simplicidade
+
+Sem feeds sociais, sem distrações. Apenas sua evolução.
+
+📌 Status do Projeto
+
+🚧 Em desenvolvimento ativo
+
+Este projeto está sendo desenvolvido como:
+
+projeto de portfólio
+
+projeto acadêmico da universidade
+
+Versões futuras incluirão recomendações inteligentes de estudo e análises mais avançadas de evolução.
+
+👨‍💻 Autor
+
+Jailson Ferreira
+
+GitHub
+https://github.com/Gregwzx
+
+⭐ Apoie o projeto
+
+Se você gostou da ideia do DevTrack, considere deixar uma ⭐ no repositório.
