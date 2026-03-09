@@ -1,100 +1,91 @@
-# 📱 DevTrack Mobile
+<p align="center">
+  <img src="assets/icon.png" width="120" alt="DevTrack Logo"/>
+</p>
 
-DevTrack é um aplicativo mobile focado em acompanhar a evolução profissional de estudantes e desenvolvedores através do registro diário de aprendizado, consistência de estudos e métricas pessoais de progresso.
+<h1 align="center">DevTrack</h1>
 
-O objetivo do app é funcionar como um **tracker pessoal de evolução**, ajudando o usuário a visualizar o quanto está aprendendo ao longo do tempo — sem elementos de rede social, mantendo foco total no crescimento individual.
+<p align="center">
+Track your learning. Build consistency. Visualize your evolution.
+</p>
 
----
-
-## 🚀 Objetivo do Projeto
-
-Muitos estudantes aprendem todos os dias, mas não conseguem medir sua evolução. O DevTrack foi criado para transformar aprendizado em algo visível, motivador e contínuo, incentivando consistência através de dados e feedback inteligente.
-
----
-
-## ✨ Funcionalidades
-
-### ✅ Implementado
-
-* 📊 Dashboard (Home) com visão geral do progresso
-* 🔥 Sistema de streak (dias consecutivos estudando)
-* 🧠 Registro diário "Aprendi Hoje"
-* 👤 Página de perfil com estatísticas pessoais
-* 🎨 Interface moderna focada em produtividade
-
-### 🚧 Em desenvolvimento
-
-* 🔐 Login com Google
-* 🤖 Sugestões inteligentes de estudo usando IA (Gemini 1.5 Flash)
-* 💾 Persistência de dados do usuário
-
-### 💡 Planejado
-
-* 📅 Heatmap de aprendizado estilo GitHub
-* 🎯 Metas semanais e mensais
-* 🔔 Lembretes e notificações motivacionais
-* 📈 Estatísticas avançadas de evolução
+<p align="center">
+  <img src="https://img.shields.io/badge/React%20Native-Mobile-blue"/>
+  <img src="https://img.shields.io/badge/Expo-Framework-black"/>
+  <img src="https://img.shields.io/badge/TypeScript-Language-blue"/>
+  <img src="https://img.shields.io/badge/status-in%20development-orange"/>
+</p>
 
 ---
 
-## 🧱 Tecnologias Utilizadas
+# 📱 About DevTrack
 
-* React Native
-* Expo
-* TypeScript
-* Firebase Authentication (planejado)
-* AsyncStorage / Backend (planejado)
-* API Gemini (IA para sugestões)
+**DevTrack** is a mobile application designed to help students and developers **track their professional growth through daily learning logs and consistency metrics**.
 
----
+Instead of focusing on social networking, the app focuses entirely on **personal progress and self-improvement**.
 
-## ⚙️ Como rodar o projeto
+The goal is simple:
 
-```bash
-# Clonar o repositório
-git clone https://github.com/Gregwzx/Devtrack.git
+> Turn daily learning into visible progress.
 
-# Entrar na pasta mobile
-cd devtrack-mobile
-
-# Instalar dependências
-npm install
-
-# Rodar o projeto
-npx expo start
-```
+DevTrack allows users to record what they learned each day and track their development through streaks, statistics and intelligent insights.
 
 ---
 
-## 🧠 Conceito do Produto
+# 🚀 The Idea
 
-O DevTrack funciona como um "GitHub da evolução pessoal", permitindo que o usuário registre aprendizados, acompanhe sua consistência e receba sugestões inteligentes para continuar evoluindo.
+Many developers study every day but rarely see **how much they have improved over time**.
 
-O foco do projeto é simplicidade, clareza e motivação através de progresso real — sem distrações sociais.
+DevTrack was created to transform learning into:
 
----
+- 📊 measurable progress  
+- 🔥 consistency streaks  
+- 📅 visual learning history  
+- 🧠 structured knowledge logs  
 
-## 📌 Status do Projeto
+Think of it as a:
 
-🚧 Em desenvolvimento ativo.
-
-Este projeto faz parte do portfólio pessoal e também está sendo desenvolvido como proposta acadêmica.
-
----
-
-## 👨‍💻 Autor
-
-Desenvolvido por Jailson Ferreira.
+> **"GitHub for personal learning evolution."**
 
 ---
 
-## ⭐ Próximos Passos
+# ✨ Features
 
-* Implementar autenticação
-* Salvar progresso do usuário
-* Integrar IA para recomendações
-* Adicionar visualização de consistência (heatmap)
+## ✅ Implemented
+
+- 📊 **Progress Dashboard**
+- 🔥 **Study Streak System**
+- 🧠 **Daily Learning Log ("What I Learned Today")**
+- 👤 **Profile with Personal Statistics**
+- 📅 **GitHub-style Learning Heatmap**
+- 🎨 **Clean productivity-focused UI**
 
 ---
 
-Se você gostou do projeto, considere deixar uma ⭐ 
+## 🚧 In Development
+
+- 🔐 Google Authentication
+- 💾 User data persistence
+- 🤖 AI-powered learning suggestions (Gemini 1.5 Flash)
+
+---
+
+## 💡 Planned
+
+- 🎯 Weekly and monthly learning goals
+- 🔔 Smart reminders and motivation notifications
+- 📈 Advanced evolution analytics
+- 🧠 AI-generated study insights
+
+---
+
+# 📸 Screenshots
+
+*(Add screenshots here later)*
+
+Example:
+
+```markdown
+<p align="center">
+<img src="screenshots/home.png" width="250"/>
+<img src="screenshots/profile.png" width="250"/>
+</p>
