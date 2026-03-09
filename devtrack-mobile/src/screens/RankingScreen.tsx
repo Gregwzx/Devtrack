@@ -8,17 +8,18 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import {
     Trophy, Flame, BookOpen, Users, Medal,
-    TrendingUp, Code2, Server, Layers, RefreshCw, WifiOff,
+    TrendingUp, RefreshCw, WifiOff,
 } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { getGlobalRanking, RankingUser } from '../services/userService';
+import { AREA_ICON } from '../constants/areas';
 import type { StudyArea } from '../services/ai.service';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 type SortKey = 'streak' | 'learnings';
 
-// ─── Mock fallback (used when Firestore is unavailable) ───────────────────────
+// ─── Mock fallback ────────────────────────────────────────────────────────────
 const MOCK_FRIENDS: RankingUser[] = [
     { uid: '1', name: 'Você',   username: '@devuser',    streak: 7,  learnings: 24, studyArea: 'fullstack' },
     { uid: '2', name: 'Greg',   username: '@greg',       streak: 14, learnings: 41, studyArea: 'frontend'  },
@@ -32,12 +33,6 @@ const MOCK_FRIENDS: RankingUser[] = [
 function getInitials(name: string) {
     return name.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase();
 }
-
-const AREA_ICON: Record<StudyArea, { Icon: any; color: string }> = {
-    frontend:  { Icon: Code2,  color: '#06b6d4' },
-    backend:   { Icon: Server, color: '#10b981' },
-    fullstack: { Icon: Layers, color: '#8b5cf6' },
-};
 
 const MEDAL_COLOR: Record<number, string> = { 1: '#FFD700', 2: '#C0C0C0', 3: '#CD7F32' };
 
@@ -165,16 +160,11 @@ export default function RankingScreen() {
                 setUsers(data);
                 setIsOffline(false);
             } else {
-                // No users in Firestore yet — use mock with current user injected
-                const mock = MOCK_FRIENDS.map(f => ({
-                    ...f,
-                    isYou: f.uid === '1', // first mock entry represents "you"
-                }));
+                const mock = MOCK_FRIENDS.map(f => ({ ...f, isYou: f.uid === '1' }));
                 setUsers(mock);
                 setIsOffline(false);
             }
         } catch {
-            // Network error — show mock data with offline badge
             const mock = MOCK_FRIENDS.map(f => ({ ...f, isYou: f.uid === '1' }));
             setUsers(mock);
             setIsOffline(true);
@@ -186,9 +176,9 @@ export default function RankingScreen() {
 
     useEffect(() => { fetchRanking(); }, [sortKey]);
 
-    const sorted    = [...users].sort((a, b) => b[sortKey] - a[sortKey]);
-    const top3      = sorted.slice(0, 3);
-    const yourRank  = sorted.findIndex(f => f.isYou) + 1;
+    const sorted   = [...users].sort((a, b) => b[sortKey] - a[sortKey]);
+    const top3     = sorted.slice(0, 3);
+    const yourRank = sorted.findIndex(f => f.isYou) + 1;
 
     return (
         <SafeAreaView style={styles.container}>

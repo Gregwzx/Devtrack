@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
     ScrollView, StyleSheet, View, Text, TouchableOpacity,
-    Modal, TextInput, Pressable, ActivityIndicator, Alert,
+    Pressable, Alert,
 } from 'react-native';
 import AddLearningModal from '../components/home/AddLearningModal';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,37 +15,26 @@ import Svg, { Path, Circle, Line, Defs, LinearGradient as SvgLinearGradient, Sto
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
     Flame, BarChart2, Brain, Cpu, Plus,
-    Zap, Code2, Server, Layers, Lightbulb, BookOpen,
+    Zap, Lightbulb, BookOpen,
     RefreshCw, AlertCircle, Trash2, Clock,
 } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { getAIResult, StudyArea, AIResult } from '../services/ai.service';
-import { saveStreak, saveLearnings } from '../services/userService';
+import { saveStreak, saveLearnings, getStorageKeys } from '../services/userService';
+import { AREA_CONFIG } from '../constants/areas';
 import { todayKey, yesterdayKey, formatHeaderDate, formatAgo } from '../../utils/dateHelpers';
 
-// ─── Storage keys ─────────────────────────────────────────────────────────────
-const STREAK_KEY    = 'DEVTRACK_STREAK';
-const LEARNINGS_KEY = 'DEVTRACK_LEARNINGS';
-const STATS_KEY     = 'DEVTRACK_STATS';
-const AREA_KEY      = 'DEVTRACK_STUDY_AREA';
-const SESSION_KEY   = 'DEVTRACK_SESSION_START';
-
+// ─── Types ────────────────────────────────────────────────────────────────────
 interface StreakData { count: number; lastDate: string | null; }
 interface Learning  { id: string; text: string; date: string; }
 interface Stats     { totalHours: number; skills: number; learnings: number; }
 
-const AREA_CONFIG: Record<StudyArea, { label: string; Icon: any; color: string; desc: string }> = {
-    frontend:  { label: 'Frontend',  Icon: Code2,  color: '#06b6d4', desc: 'UI · React · CSS · UX' },
-    backend:   { label: 'Backend',   Icon: Server, color: '#10b981', desc: 'APIs · DB · Cloud' },
-    fullstack: { label: 'Fullstack', Icon: Layers, color: '#8b5cf6', desc: 'Full stack dev' },
-};
-
-// ─── Timezone-safe streak ────────────────────────────────────────────────────
-async function checkAndUpdateStreak(uid?: string): Promise<StreakData> {
+// ─── Timezone-safe streak ─────────────────────────────────────────────────────
+async function checkAndUpdateStreak(streakKey: string, uid?: string, email?: string): Promise<StreakData> {
     const today     = todayKey();
     const yesterday = yesterdayKey();
 
-    const raw = await AsyncStorage.getItem(STREAK_KEY);
+    const raw = await AsyncStorage.getItem(streakKey);
     const streak: StreakData = raw ? JSON.parse(raw) : { count: 0, lastDate: null };
 
     if (streak.lastDate === today) return streak;
@@ -53,20 +42,20 @@ async function checkAndUpdateStreak(uid?: string): Promise<StreakData> {
     const newCount = streak.lastDate === yesterday ? streak.count + 1 : 1;
     const updated: StreakData = { count: newCount, lastDate: today };
 
-    await AsyncStorage.setItem(STREAK_KEY, JSON.stringify(updated));
-    if (uid) await saveStreak(uid, newCount, today);
+    await AsyncStorage.setItem(streakKey, JSON.stringify(updated));
+    if (uid && email) await saveStreak(uid, email, newCount, today);
     return updated;
 }
 
-// ─── Session timer (tracks study hours) ──────────────────────────────────────
-async function getSessionHours(): Promise<number> {
-    const raw = await AsyncStorage.getItem(SESSION_KEY);
+// ─── Session timer ────────────────────────────────────────────────────────────
+async function getSessionHours(sessionKey: string): Promise<number> {
+    const raw = await AsyncStorage.getItem(sessionKey);
     if (!raw) {
-        await AsyncStorage.setItem(SESSION_KEY, Date.now().toString());
+        await AsyncStorage.setItem(sessionKey, Date.now().toString());
         return 0;
     }
-    const elapsed = (Date.now() - Number(raw)) / 3_600_000; // ms → hours
-    return Math.round(elapsed * 10) / 10; // 1 decimal
+    const elapsed = (Date.now() - Number(raw)) / 3_600_000;
+    return Math.round(elapsed * 10) / 10;
 }
 
 // ─── Speedometer ─────────────────────────────────────────────────────────────
@@ -443,6 +432,8 @@ function AICard({ streak, learnings, firstName, onAreaDetected }: {
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function HomeScreen() {
     const { user } = useAuth();
+    const email    = user?.email ?? '';
+
     const [streak,    setStreak]    = useState(0);
     const [learnings, setLearnings] = useState<Learning[]>([]);
     const [stats,     setStats]     = useState<Stats>({ totalHours: 0, skills: 0, learnings: 0 });
@@ -450,13 +441,18 @@ export default function HomeScreen() {
 
     const firstName = user?.displayName?.split(' ')[0] ?? 'Dev';
 
+    // Chaves com namespace por e-mail — dados isolados por conta
+    const keys = email ? getStorageKeys(email) : null;
+
     const loadData = useCallback(async () => {
+        if (!keys) return;
+
         const [streakData, learnRaw, statsRaw, areaRaw, sessionHours] = await Promise.all([
-            checkAndUpdateStreak(user?.uid),
-            AsyncStorage.getItem(LEARNINGS_KEY),
-            AsyncStorage.getItem(STATS_KEY),
-            AsyncStorage.getItem(AREA_KEY),
-            getSessionHours(),
+            checkAndUpdateStreak(keys.streak, user?.uid, email),
+            AsyncStorage.getItem(keys.learnings),
+            AsyncStorage.getItem(keys.stats),
+            AsyncStorage.getItem(keys.area),
+            getSessionHours(keys.session),
         ]);
 
         setStreak(streakData.count);
@@ -468,35 +464,37 @@ export default function HomeScreen() {
         setStats({ ...s, totalHours: sessionHours, learnings: list.length });
 
         if (areaRaw) setStudyArea(areaRaw as StudyArea);
-    }, [user?.uid]);
+    }, [user?.uid, email]);
 
     useEffect(() => { loadData(); }, [loadData]);
 
-    // Persist detected area from AI
     const handleAreaDetected = useCallback(async (area: StudyArea) => {
+        if (!keys) return;
         setStudyArea(area);
-        await AsyncStorage.setItem(AREA_KEY, area);
-    }, []);
+        await AsyncStorage.setItem(keys.area, area);
+    }, [keys]);
 
     const handleAddLearning = async (text: string, _meta?: { area: string; stacks: string[]; type: string }) => {
+        if (!keys) return;
         const item: Learning = { id: Date.now().toString(), text, date: new Date().toISOString() };
         const updated = [item, ...learnings];
         setLearnings(updated);
-        await AsyncStorage.setItem(LEARNINGS_KEY, JSON.stringify(updated));
-        if (user?.uid) await saveLearnings(user.uid, updated);
+        await AsyncStorage.setItem(keys.learnings, JSON.stringify(updated));
+        if (user?.uid) await saveLearnings(user.uid, email, updated);
         const newStats = { ...stats, learnings: updated.length };
         setStats(newStats);
-        await AsyncStorage.setItem(STATS_KEY, JSON.stringify(newStats));
+        await AsyncStorage.setItem(keys.stats, JSON.stringify(newStats));
     };
 
     const handleDeleteLearning = async (id: string) => {
+        if (!keys) return;
         const updated = learnings.filter(l => l.id !== id);
         setLearnings(updated);
-        await AsyncStorage.setItem(LEARNINGS_KEY, JSON.stringify(updated));
-        if (user?.uid) await saveLearnings(user.uid, updated);
+        await AsyncStorage.setItem(keys.learnings, JSON.stringify(updated));
+        if (user?.uid) await saveLearnings(user.uid, email, updated);
         const newStats = { ...stats, learnings: updated.length };
         setStats(newStats);
-        await AsyncStorage.setItem(STATS_KEY, JSON.stringify(newStats));
+        await AsyncStorage.setItem(keys.stats, JSON.stringify(newStats));
     };
 
     return (
@@ -539,7 +537,6 @@ const styles = StyleSheet.create({
     sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
     sectionTitle:  { color: '#fff', fontSize: 15, fontWeight: '700', flex: 1 },
 
-    // Streak
     streakCard:   { backgroundColor: '#16151d', borderRadius: 20, padding: 20, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#2a2040' },
     streakCircle: { width: 82, height: 82, borderRadius: 41, backgroundColor: '#8b5cf6', justifyContent: 'center', alignItems: 'center', marginRight: 18, shadowColor: '#8b5cf6', shadowOpacity: 0.45, shadowRadius: 12, elevation: 8 },
     streakNumber: { fontSize: 28, fontWeight: '900', color: '#fff', lineHeight: 30 },
@@ -551,13 +548,11 @@ const styles = StyleSheet.create({
     dot:          { width: 8, height: 8, borderRadius: 4, backgroundColor: '#2a2040' },
     dotActive:    { backgroundColor: '#8b5cf6' },
 
-    // Stats
     statsRow: { flexDirection: 'row', gap: 10 },
     statCard: { flex: 1, backgroundColor: '#16151d', borderRadius: 18, paddingVertical: 18, paddingHorizontal: 12, borderWidth: 1, borderColor: '#2a2040' },
     statValue: { color: '#fff', fontSize: 22, fontWeight: '800', letterSpacing: -0.5 },
     statLabel: { color: '#6b6880', fontSize: 11, marginTop: 3, fontWeight: '500' },
 
-    // Speedometer
     speedoCard:        { backgroundColor: '#16151d', borderRadius: 20, paddingVertical: 20, paddingHorizontal: 16, borderWidth: 1, borderColor: '#2a2040', alignItems: 'center' },
     speedoCenterWrap:  { marginTop: -12, alignItems: 'center', marginBottom: 12 },
     speedoPercent:     { fontSize: 30, fontWeight: '900', letterSpacing: -1 },
@@ -568,7 +563,6 @@ const styles = StyleSheet.create({
     speedoAreaDesc:    { color: '#6b6880', fontSize: 12 },
     speedoNote:        { color: '#44415a', fontSize: 11, marginTop: 10, textAlign: 'center' },
 
-    // Learnings
     addIconBtn:    { marginLeft: 'auto' },
     learningRow:   { flexDirection: 'row', backgroundColor: '#16151d', borderRadius: 14, padding: 14, marginBottom: 8, alignItems: 'flex-start', borderWidth: 1, borderColor: '#2a2040' },
     learningDot:   { width: 6, height: 6, borderRadius: 3, backgroundColor: '#8b5cf6', marginTop: 6, marginRight: 10, flexShrink: 0 },
@@ -583,7 +577,6 @@ const styles = StyleSheet.create({
     addBtn:        { backgroundColor: '#8b5cf6', borderRadius: 14, padding: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 4, shadowColor: '#8b5cf6', shadowOpacity: 0.3, shadowRadius: 10, elevation: 4 },
     addBtnText:    { color: '#fff', fontWeight: '700', fontSize: 15 },
 
-    // AI
     aiMoodBadge:       { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 },
     aiMoodText:        { fontSize: 10, fontWeight: '700' },
     refreshBtn:        { padding: 4 },

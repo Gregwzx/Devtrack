@@ -16,13 +16,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import {
     LogOut, Edit2, Link, Image as ImageIcon, Flame, BookOpen,
-    Plus, X, Check, Save, Code2, Server, Layers,
+    Plus, X, Check, Save,
     RefreshCw, Trophy, Zap, Star, TrendingUp,
     Calendar, Award, ChevronRight, Clock, Camera,
 } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { signOutUser } from '../services/authService';
 import { getUserData, saveProfile, getStorageKeys } from '../services/userService';
+import { AREA_CONFIG } from '../constants/areas';
+import { formatAgo } from '../../utils/dateHelpers';
 import type { StudyArea } from '../services/ai.service';
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -45,24 +47,6 @@ const BANNER_COLORS = [
     '#0d0b18','#1a1040','#13102a','#1e0a3a',
     '#0a0818','#160e30','#22104a','#0d0d10',
 ];
-
-const AREA_CONFIG: Record<StudyArea, { label: string; Icon: any; color: string; bg: string }> = {
-    frontend:  { label: 'Frontend',  Icon: Code2,  color: '#06b6d4', bg: '#06b6d412' },
-    backend:   { label: 'Backend',   Icon: Server, color: '#10b981', bg: '#10b98112' },
-    fullstack: { label: 'Fullstack', Icon: Layers, color: '#8b5cf6', bg: '#8b5cf612' },
-};
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-function formatAgo(date: Date): string {
-    const diff = Date.now() - date.getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 60)  return `${mins}min atrás`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24)   return `${hrs}h atrás`;
-    const days = Math.floor(hrs / 24);
-    if (days < 7)   return `${days}d atrás`;
-    return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
-}
 
 // ─── Badges ───────────────────────────────────────────────────────────────────
 interface Badge { id: string; label: string; desc: string; Icon: any; color: string; unlocked: boolean; }
@@ -656,7 +640,7 @@ export default function ProfileScreen() {
                                         <Text style={styles.learnText}>{item.text}</Text>
                                         <View style={styles.learnMeta}>
                                             <Clock size={10} color="#44415a" strokeWidth={2} />
-                                            <Text style={styles.learnDate}>{formatAgo(new Date(item.date))}</Text>
+                                            <Text style={styles.learnDate}>{formatAgo(item.date)}</Text>
                                         </View>
                                     </View>
                                 </Animated.View>
