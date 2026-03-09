@@ -4,6 +4,7 @@ import {
     ScrollView, StyleSheet, View, Text, TouchableOpacity,
     Modal, TextInput, Pressable, ActivityIndicator, Alert,
 } from 'react-native';
+import AddLearningModal from '../components/home/AddLearningModal';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, {
     FadeInDown, FadeInUp,
@@ -13,7 +14,7 @@ import Animated, {
 import Svg, { Path, Circle, Line, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
-    Flame, BarChart2, Brain, Cpu, Plus, X, Check,
+    Flame, BarChart2, Brain, Cpu, Plus,
     Zap, Code2, Server, Layers, Lightbulb, BookOpen,
     RefreshCw, AlertCircle, Trash2, Clock,
 } from 'lucide-react-native';
@@ -210,26 +211,16 @@ function StatsCard({ stats }: { stats: Stats }) {
     );
 }
 
-// ─── Learnings Card (with delete + see all) ───────────────────────────────────
+// ─── Learnings Card ───────────────────────────────────────────────────────────
 function LearningsCard({
-    learnings,
-    onAdd,
-    onDelete,
+    learnings, onAdd, onDelete,
 }: {
     learnings: Learning[];
-    onAdd: (text: string) => void;
+    onAdd: (text: string, meta?: { area: string; stacks: string[]; type: string }) => void;
     onDelete: (id: string) => void;
 }) {
     const [modalVisible, setModalVisible] = useState(false);
     const [expanded, setExpanded]         = useState(false);
-    const [text, setText]                 = useState('');
-
-    const handleSubmit = () => {
-        if (!text.trim()) return;
-        onAdd(text.trim());
-        setText('');
-        setModalVisible(false);
-    };
 
     const confirmDelete = (id: string, preview: string) => {
         Alert.alert(
@@ -294,32 +285,11 @@ function LearningsCard({
                 <Text style={styles.addBtnText}>Novo registro</Text>
             </TouchableOpacity>
 
-            {/* Add Modal */}
-            <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={() => setModalVisible(false)}>
-                <Pressable style={styles.overlay} onPress={() => setModalVisible(false)}>
-                    <Pressable style={styles.modal} onPress={() => {}}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Novo registro</Text>
-                            <TouchableOpacity onPress={() => setModalVisible(false)}>
-                                <X size={20} color="#6b6880" strokeWidth={2} />
-                            </TouchableOpacity>
-                        </View>
-                        <TextInput
-                            style={styles.modalInput}
-                            placeholder="O que você aprendeu hoje?"
-                            placeholderTextColor="#555"
-                            value={text}
-                            onChangeText={setText}
-                            multiline
-                            autoFocus
-                        />
-                        <TouchableOpacity style={styles.modalBtn} onPress={handleSubmit}>
-                            <Check size={18} color="#fff" strokeWidth={2.5} />
-                            <Text style={styles.modalBtnText}>Salvar</Text>
-                        </TouchableOpacity>
-                    </Pressable>
-                </Pressable>
-            </Modal>
+            <AddLearningModal
+                visible={modalVisible}
+                onClose={() => setModalVisible(false)}
+                onSave={(text, meta) => onAdd(text, meta)}
+            />
         </Animated.View>
     );
 }
@@ -508,7 +478,7 @@ export default function HomeScreen() {
         await AsyncStorage.setItem(AREA_KEY, area);
     }, []);
 
-    const handleAddLearning = async (text: string) => {
+    const handleAddLearning = async (text: string, _meta?: { area: string; stacks: string[]; type: string }) => {
         const item: Learning = { id: Date.now().toString(), text, date: new Date().toISOString() };
         const updated = [item, ...learnings];
         setLearnings(updated);
@@ -612,15 +582,6 @@ const styles = StyleSheet.create({
     emptyText:     { color: '#6b6880', fontSize: 13 },
     addBtn:        { backgroundColor: '#8b5cf6', borderRadius: 14, padding: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 4, shadowColor: '#8b5cf6', shadowOpacity: 0.3, shadowRadius: 10, elevation: 4 },
     addBtnText:    { color: '#fff', fontWeight: '700', fontSize: 15 },
-
-    // Modal
-    overlay:      { flex: 1, backgroundColor: 'rgba(8,7,14,0.85)', justifyContent: 'flex-end' },
-    modal:        { backgroundColor: '#16151d', borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 24, borderWidth: 1, borderColor: '#2a2040' },
-    modalHeader:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-    modalTitle:   { color: '#fff', fontSize: 17, fontWeight: '700' },
-    modalInput:   { backgroundColor: '#0d0d10', borderRadius: 14, padding: 16, color: '#fff', fontSize: 15, minHeight: 100, borderWidth: 1, borderColor: '#2a2040', textAlignVertical: 'top', marginBottom: 16 },
-    modalBtn:     { backgroundColor: '#8b5cf6', borderRadius: 14, padding: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-    modalBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
 
     // AI
     aiMoodBadge:       { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 },

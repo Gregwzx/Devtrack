@@ -18,29 +18,27 @@ import {
     LogOut, Edit2, Link, Image as ImageIcon, Flame, BookOpen,
     Plus, X, Check, Save, Code2, Server, Layers,
     RefreshCw, Trophy, Zap, Star, TrendingUp,
-    Calendar, Award, ChevronRight, Clock,
+    Calendar, Award, ChevronRight, Clock, Camera,
 } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { signOutUser } from '../services/authService';
-import { getUserData, saveProfile } from '../services/userService';
+import { getUserData, saveProfile, getStorageKeys } from '../services/userService';
 import type { StudyArea } from '../services/ai.service';
 
 const { width: SCREEN_W } = Dimensions.get('window');
-
-// ─── Keys ─────────────────────────────────────────────────────────────────────
-const PROFILE_KEY   = 'DEVTRACK_PROFILE';
-const STREAK_KEY    = 'DEVTRACK_STREAK';
-const LEARNINGS_KEY = 'DEVTRACK_LEARNINGS';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface SocialLink   { id: string; label: string; url: string; }
 interface LearningItem { id: string; text: string; date: string; }
 interface LocalProfile {
-    bio: string; avatarUri: string | null; bannerColor: string; links: SocialLink[];
+    bio: string;
+    photoURL: string | null; // URL remota (Firebase Storage) ou local temporária
+    bannerColor: string;
+    links: SocialLink[];
 }
 
 const DEFAULT_LOCAL: LocalProfile = {
-    bio: '', avatarUri: null, bannerColor: '#1a1040', links: [],
+    bio: '', photoURL: null, bannerColor: '#1a1040', links: [],
 };
 
 const BANNER_COLORS = [
@@ -53,12 +51,6 @@ const AREA_CONFIG: Record<StudyArea, { label: string; Icon: any; color: string; 
     backend:   { label: 'Backend',   Icon: Server, color: '#10b981', bg: '#10b98112' },
     fullstack: { label: 'Fullstack', Icon: Layers, color: '#8b5cf6', bg: '#8b5cf612' },
 };
-
-// ─── Persist ──────────────────────────────────────────────────────────────────
-async function persistProfile(uid: string, profile: LocalProfile): Promise<void> {
-    await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
-    await saveProfile(uid, { bio: profile.bio, photoURL: profile.avatarUri });
-}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function formatAgo(date: Date): string {
@@ -102,8 +94,7 @@ function buildHeatmap(learnings: LearningItem[]): { date: string; count: number 
         for (let d = 0; d < 7; d++) {
             const cur = new Date(startDate);
             cur.setDate(startDate.getDate() + w * 7 + d);
-            const key = cur.toDateString();
-            week.push({ date: key, count: countMap[key] ?? 0 });
+            week.push({ date: cur.toDateString(), count: countMap[cur.toDateString()] ?? 0 });
         }
         weeks.push(week);
     }
@@ -119,7 +110,6 @@ function heatColor(count: number) {
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
-
 function ActivityHeatmap({ learnings }: { learnings: LearningItem[] }) {
     const grid  = buildHeatmap(learnings);
     const total = learnings.length;
@@ -230,19 +220,61 @@ function AnimatedBar({ label, value, max, color, delay }: {
 
 // ─── Edit Modal ───────────────────────────────────────────────────────────────
 function EditModal({ visible, profile, onSave, onClose, saving }: {
-    visible: boolean; profile: LocalProfile;
-    onSave: (p: LocalProfile) => Promise<void>; onClose: () => void; saving: boolean;
+    visible: boolean;
+    profile: LocalProfile;
+    onSave: (p: LocalProfile, localPhotoUri?: string) => Promise<void>;
+    onClose: () => void;
+    saving: boolean;
 }) {
-    const [draft, setDraft]       = useState<LocalProfile>(profile);
-    const [newLabel, setNewLabel] = useState('');
-    const [newUrl, setNewUrl]     = useState('');
-    const [tab, setTab]           = useState<'bio' | 'links' | 'banner'>('bio');
+    const [draft, setDraft]           = useState<LocalProfile>(profile);
+    const [localPhotoUri, setLocalPhotoUri] = useState<string | undefined>(undefined);
+    const [newLabel, setNewLabel]     = useState('');
+    const [newUrl, setNewUrl]         = useState('');
+    const [tab, setTab]               = useState<'bio' | 'links' | 'banner'>('bio');
 
-    useEffect(() => { if (visible) { setDraft(profile); setTab('bio'); } }, [profile, visible]);
+    useEffect(() => {
+        if (visible) {
+            setDraft(profile);
+            setLocalPhotoUri(undefined);
+            setTab('bio');
+        }
+    }, [profile, visible]);
 
     const pickAvatar = async () => {
-        const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [1,1], quality: 0.8 });
-        if (!r.canceled) setDraft(d => ({ ...d, avatarUri: r.assets[0].uri }));
+        const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!perm.granted) {
+            Alert.alert('Permissão necessária', 'Permita o acesso à galeria para trocar a foto.');
+            return;
+        }
+        const r = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.8,
+        });
+        if (!r.canceled) {
+            const uri = r.assets[0].uri;
+            setLocalPhotoUri(uri);
+            setDraft(d => ({ ...d, photoURL: uri })); // preview local
+        }
+    };
+
+    const takePhoto = async () => {
+        const perm = await ImagePicker.requestCameraPermissionsAsync();
+        if (!perm.granted) {
+            Alert.alert('Permissão necessária', 'Permita o acesso à câmera para tirar uma foto.');
+            return;
+        }
+        const r = await ImagePicker.launchCameraAsync({
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.8,
+        });
+        if (!r.canceled) {
+            const uri = r.assets[0].uri;
+            setLocalPhotoUri(uri);
+            setDraft(d => ({ ...d, photoURL: uri }));
+        }
     };
 
     const addLink = () => {
@@ -252,42 +284,88 @@ function EditModal({ visible, profile, onSave, onClose, saving }: {
         setNewLabel(''); setNewUrl('');
     };
 
-    const TABS = [{ key: 'bio' as const, label: 'Perfil' }, { key: 'links' as const, label: 'Links' }, { key: 'banner' as const, label: 'Visual' }];
+    const TABS = [
+        { key: 'bio'    as const, label: 'Perfil'  },
+        { key: 'links'  as const, label: 'Links'   },
+        { key: 'banner' as const, label: 'Visual'  },
+    ];
 
     return (
         <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
             <SafeAreaView style={editStyles.container} edges={['top','left','right']}>
                 <View style={editStyles.header}>
-                    <TouchableOpacity onPress={onClose} disabled={saving}><Text style={editStyles.cancel}>Cancelar</Text></TouchableOpacity>
+                    <TouchableOpacity onPress={onClose} disabled={saving}>
+                        <Text style={editStyles.cancel}>Cancelar</Text>
+                    </TouchableOpacity>
                     <Text style={editStyles.title}>Editar Perfil</Text>
-                    <TouchableOpacity onPress={() => onSave(draft)} disabled={saving} style={editStyles.saveBtn}>
+                    <TouchableOpacity
+                        onPress={() => onSave(draft, localPhotoUri)}
+                        disabled={saving}
+                        style={editStyles.saveBtn}
+                    >
                         {saving
                             ? <ActivityIndicator size="small" color="#8b5cf6" />
                             : <><Save size={14} color="#8b5cf6" strokeWidth={2.5} /><Text style={editStyles.save}>Salvar</Text></>
                         }
                     </TouchableOpacity>
                 </View>
+
                 <View style={editStyles.tabs}>
                     {TABS.map(t => (
-                        <TouchableOpacity key={t.key} style={[editStyles.tab, tab===t.key && editStyles.tabActive]} onPress={() => setTab(t.key)}>
-                            <Text style={[editStyles.tabText, tab===t.key && editStyles.tabTextActive]}>{t.label}</Text>
+                        <TouchableOpacity
+                            key={t.key}
+                            style={[editStyles.tab, tab === t.key && editStyles.tabActive]}
+                            onPress={() => setTab(t.key)}
+                        >
+                            <Text style={[editStyles.tabText, tab === t.key && editStyles.tabTextActive]}>
+                                {t.label}
+                            </Text>
                         </TouchableOpacity>
                     ))}
                 </View>
+
                 <ScrollView contentContainerStyle={editStyles.body} keyboardShouldPersistTaps="handled">
                     {tab === 'bio' && (
                         <>
-                            <TouchableOpacity style={editStyles.avatarPicker} onPress={pickAvatar}>
-                                {draft.avatarUri
-                                    ? <Image source={{ uri: draft.avatarUri }} style={editStyles.avatarPreview} />
-                                    : <View style={editStyles.avatarPlaceholder}><ImageIcon size={24} color="#7a7590" strokeWidth={1.5} /><Text style={editStyles.avatarHint}>Foto de perfil</Text></View>
-                                }
-                                <View style={editStyles.avatarOverlay}><Edit2 size={14} color="#fff" strokeWidth={2} /></View>
-                            </TouchableOpacity>
+                            {/* Avatar picker */}
+                            <View style={editStyles.avatarSection}>
+                                <View style={editStyles.avatarWrap}>
+                                    {draft.photoURL
+                                        ? <Image source={{ uri: draft.photoURL }} style={editStyles.avatarPreview} />
+                                        : <View style={editStyles.avatarPlaceholder}>
+                                            <ImageIcon size={28} color="#7a7590" strokeWidth={1.5} />
+                                          </View>
+                                    }
+                                </View>
+                                <View style={editStyles.avatarBtns}>
+                                    <TouchableOpacity style={editStyles.photoBtn} onPress={pickAvatar}>
+                                        <ImageIcon size={14} color="#8b5cf6" strokeWidth={2} />
+                                        <Text style={editStyles.photoBtnText}>Galeria</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity style={editStyles.photoBtn} onPress={takePhoto}>
+                                        <Camera size={14} color="#8b5cf6" strokeWidth={2} />
+                                        <Text style={editStyles.photoBtnText}>Câmera</Text>
+                                    </TouchableOpacity>
+                                </View>
+                                {localPhotoUri && (
+                                    <Text style={editStyles.uploadHint}>
+                                        📤 A foto será enviada ao salvar
+                                    </Text>
+                                )}
+                            </View>
+
                             <Text style={editStyles.label}>Bio</Text>
-                            <TextInput style={[editStyles.input, { minHeight: 90, textAlignVertical: 'top' }]} value={draft.bio} onChangeText={v => setDraft(d => ({ ...d, bio: v }))} placeholder="Suas tecnologias, objetivos..." placeholderTextColor="#444" multiline />
+                            <TextInput
+                                style={[editStyles.input, { minHeight: 90, textAlignVertical: 'top' }]}
+                                value={draft.bio}
+                                onChangeText={v => setDraft(d => ({ ...d, bio: v }))}
+                                placeholder="Suas tecnologias, objetivos..."
+                                placeholderTextColor="#444"
+                                multiline
+                            />
                         </>
                     )}
+
                     {tab === 'links' && (
                         <>
                             <Text style={editStyles.label}>Label</Text>
@@ -312,12 +390,17 @@ function EditModal({ visible, profile, onSave, onClose, saving }: {
                             ))}
                         </>
                     )}
+
                     {tab === 'banner' && (
                         <>
                             <Text style={editStyles.label}>Cor do banner</Text>
                             <View style={editStyles.colorGrid}>
                                 {BANNER_COLORS.map(c => (
-                                    <TouchableOpacity key={c} style={[editStyles.colorSwatch, { backgroundColor: c }, draft.bannerColor===c && editStyles.colorSwatchSelected]} onPress={() => setDraft(d => ({ ...d, bannerColor: c }))}>
+                                    <TouchableOpacity
+                                        key={c}
+                                        style={[editStyles.colorSwatch, { backgroundColor: c }, draft.bannerColor === c && editStyles.colorSwatchSelected]}
+                                        onPress={() => setDraft(d => ({ ...d, bannerColor: c }))}
+                                    >
                                         {draft.bannerColor === c && <Check size={16} color="#8b5cf6" strokeWidth={2.5} />}
                                     </TouchableOpacity>
                                 ))}
@@ -339,6 +422,8 @@ function EditModal({ visible, profile, onSave, onClose, saving }: {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export default function ProfileScreen() {
     const { user } = useAuth();
+    const email = user?.email ?? '';
+
     const [local, setLocal]             = useState<LocalProfile>(DEFAULT_LOCAL);
     const [streak, setStreak]           = useState(0);
     const [learnings, setLearnings]     = useState<LearningItem[]>([]);
@@ -349,55 +434,82 @@ export default function ProfileScreen() {
     const [loadError, setLoadError]     = useState(false);
     const [expanded, setExpanded]       = useState(false);
 
-    const displayName = user?.displayName ?? 'Dev';
-    const email       = user?.email ?? '';
-    const initials    = displayName.split(' ').slice(0,2).map((n: string) => n[0]).join('').toUpperCase();
-    const areaConfig  = AREA_CONFIG[studyArea];
-    const badges      = computeBadges(streak, learnings.length);
+    const displayName   = user?.displayName ?? 'Dev';
+    const initials      = displayName.split(' ').slice(0,2).map((n: string) => n[0]).join('').toUpperCase();
+    const areaConfig    = AREA_CONFIG[studyArea];
+    const badges        = computeBadges(streak, learnings.length);
     const unlockedCount = badges.filter(b => b.unlocked).length;
     const shownLearnings = expanded ? learnings.slice(0,10) : learnings.slice(0,3);
 
+    // Usa chaves baseadas no email — dados isolados por conta
+    const keys = email ? getStorageKeys(email) : null;
+
     const loadData = useCallback(async () => {
+        if (!keys) return;
         setLoading(true); setLoadError(false);
         try {
             const [profRaw, streakRaw, learnRaw, areaRaw] = await Promise.all([
-                AsyncStorage.getItem(PROFILE_KEY),
-                AsyncStorage.getItem(STREAK_KEY),
-                AsyncStorage.getItem(LEARNINGS_KEY),
-                AsyncStorage.getItem('DEVTRACK_STUDY_AREA'),
+                AsyncStorage.getItem(keys.profile),
+                AsyncStorage.getItem(keys.streak),
+                AsyncStorage.getItem(keys.learnings),
+                AsyncStorage.getItem(keys.area),
             ]);
-            if (profRaw)  setLocal(JSON.parse(profRaw));
+
+            if (profRaw)   setLocal(JSON.parse(profRaw));
             if (streakRaw) setStreak(JSON.parse(streakRaw).count ?? 0);
             if (learnRaw)  setLearnings(JSON.parse(learnRaw));
             if (areaRaw)   setStudyArea(areaRaw as StudyArea);
 
+            // Tenta sincronizar com Firestore
             if (user?.uid) {
-                const remote = await getUserData(user.uid);
+                const remote = await getUserData(user.uid, email);
                 if (remote) {
                     setLocal(prev => ({
                         ...prev,
-                        bio:       prev.bio       || remote.bio      || '',
-                        avatarUri: prev.avatarUri || remote.photoURL || null,
+                        bio:      prev.bio      || remote.bio      || '',
+                        photoURL: prev.photoURL || remote.photoURL || null,
+                        links:    prev.links.length ? prev.links : (remote.links ?? []),
+                        bannerColor: prev.bannerColor !== '#1a1040' ? prev.bannerColor : (remote.bannerColor ?? '#1a1040'),
                     }));
-                    if (remote.streak > 0)           setStreak(remote.streak);
+                    if (remote.streak > 0)            setStreak(remote.streak);
                     if (remote.learnings?.length > 0) setLearnings(remote.learnings);
                     if (remote.studyArea)             setStudyArea(remote.studyArea);
                 }
             }
         } catch { setLoadError(true); }
-        finally   { setLoading(false); }
-    }, [user?.uid]);
+        finally  { setLoading(false); }
+    }, [user?.uid, email]);
 
     useEffect(() => { loadData(); }, [loadData]);
 
-    const handleSave = async (p: LocalProfile) => {
-        if (!user?.uid) return;
+    const handleSave = async (p: LocalProfile, localPhotoUri?: string) => {
+        if (!user?.uid || !keys) return;
         setSaving(true);
         try {
-            await persistProfile(user.uid, p);
-            setLocal(p); setEditVisible(false);
-        } catch { Alert.alert('Erro', 'Não foi possível salvar.'); }
-        finally { setSaving(false); }
+            // saveProfile faz upload da foto se tiver URI local e retorna a URL final
+            const finalPhotoURL = await saveProfile(user.uid, email, {
+                bio:         p.bio,
+                photoURL:    p.photoURL,
+                bannerColor: p.bannerColor,
+                links:       p.links,
+                localPhotoUri,
+            });
+
+            const updated: LocalProfile = {
+                ...p,
+                photoURL: finalPhotoURL ?? p.photoURL,
+            };
+
+            // Persiste local com chave do email
+            await AsyncStorage.setItem(keys.profile, JSON.stringify(updated));
+            setLocal(updated);
+            setEditVisible(false);
+        } catch (err) {
+            console.error(err);
+            Alert.alert('Erro', 'Não foi possível salvar o perfil.');
+        } finally {
+            setSaving(false);
+        }
     };
 
     const handleLogout = () => {
@@ -422,7 +534,7 @@ export default function ProfileScreen() {
         <SafeAreaView style={styles.container} edges={['top','left','right']}>
             <ScrollView showsVerticalScrollIndicator={false}>
 
-                {/* ── Banner ── */}
+                {/* Banner */}
                 <Animated.View entering={FadeInUp.duration(500)}>
                     <View style={[styles.banner, { backgroundColor: local.bannerColor }]}>
                         <View style={styles.bannerPattern}>
@@ -433,12 +545,14 @@ export default function ProfileScreen() {
                     </View>
                 </Animated.View>
 
-                {/* ── Avatar row ── */}
+                {/* Avatar row */}
                 <View style={styles.avatarRow}>
                     <Animated.View entering={FadeInLeft.delay(80).duration(500).springify()} style={styles.avatarWrap}>
-                        {local.avatarUri
-                            ? <Image source={{ uri: local.avatarUri }} style={styles.avatar} />
-                            : <View style={styles.avatarFallback}><Text style={styles.avatarInitials}>{initials}</Text></View>
+                        {local.photoURL
+                            ? <Image source={{ uri: local.photoURL }} style={styles.avatar} />
+                            : <View style={styles.avatarFallback}>
+                                <Text style={styles.avatarInitials}>{initials}</Text>
+                              </View>
                         }
                         <View style={styles.streakBadge}>
                             <Flame size={10} color="#fff" strokeWidth={2} />
@@ -461,7 +575,7 @@ export default function ProfileScreen() {
                     </Animated.View>
                 </View>
 
-                {/* ── Identity ── */}
+                {/* Identity */}
                 <Animated.View entering={FadeInDown.delay(120).duration(500)} style={styles.identity}>
                     <Text style={styles.name}>{displayName}</Text>
                     <Text style={styles.email}>{email}</Text>
@@ -477,12 +591,12 @@ export default function ProfileScreen() {
                     </View>
                 </Animated.View>
 
-                {/* ── Stat cards ── */}
+                {/* Stat cards */}
                 <View style={styles.statsGrid}>
                     {[
-                        { label: 'Streak',    value: streak,            Icon: Flame,    color: '#8b5cf6', suffix: 'd', delay: 140 },
-                        { label: 'Registros', value: learnings.length,  Icon: BookOpen, color: '#06b6d4', suffix: '',  delay: 200 },
-                        { label: 'Conquistas',value: unlockedCount,     Icon: Trophy,   color: '#f59e0b', suffix: '',  delay: 260 },
+                        { label: 'Streak',     value: streak,           Icon: Flame,    color: '#8b5cf6', suffix: 'd', delay: 140 },
+                        { label: 'Registros',  value: learnings.length, Icon: BookOpen, color: '#06b6d4', suffix: '',  delay: 200 },
+                        { label: 'Conquistas', value: unlockedCount,    Icon: Trophy,   color: '#f59e0b', suffix: '',  delay: 260 },
                     ].map((s, i) => (
                         <Animated.View key={i} entering={FadeInDown.delay(s.delay).duration(400).springify()} style={styles.statCard}>
                             <s.Icon size={16} color={s.color} strokeWidth={2} style={{ marginBottom: 6 }} />
@@ -492,7 +606,7 @@ export default function ProfileScreen() {
                     ))}
                 </View>
 
-                {/* ── Progress bars ── */}
+                {/* Progress bars */}
                 <Animated.View entering={FadeInDown.delay(200).duration(500)} style={styles.section}>
                     <View style={styles.sectionHeader}>
                         <TrendingUp size={15} color="#8b5cf6" strokeWidth={2} />
@@ -505,10 +619,10 @@ export default function ProfileScreen() {
                     </View>
                 </Animated.View>
 
-                {/* ── Heatmap ── */}
+                {/* Heatmap */}
                 <ActivityHeatmap learnings={learnings} />
 
-                {/* ── Badges ── */}
+                {/* Badges */}
                 <Animated.View entering={FadeInDown.delay(260).duration(500)} style={styles.section}>
                     <View style={styles.sectionHeader}>
                         <Trophy size={15} color="#8b5cf6" strokeWidth={2} />
@@ -522,7 +636,7 @@ export default function ProfileScreen() {
                     </View>
                 </Animated.View>
 
-                {/* ── Recent learnings ── */}
+                {/* Recent learnings */}
                 {learnings.length > 0 && (
                     <Animated.View entering={FadeInDown.delay(320).duration(500)} style={styles.section}>
                         <View style={styles.sectionHeader}>
@@ -560,7 +674,7 @@ export default function ProfileScreen() {
                     </Animated.View>
                 )}
 
-                {/* ── Links ── */}
+                {/* Links */}
                 {local.links.length > 0 && (
                     <Animated.View entering={FadeInDown.delay(360).duration(500)} style={styles.section}>
                         <View style={styles.sectionHeader}>
@@ -577,7 +691,7 @@ export default function ProfileScreen() {
                     </Animated.View>
                 )}
 
-                {/* ── Streak detail ── */}
+                {/* Streak detail */}
                 <Animated.View entering={FadeInDown.delay(390).duration(500)} style={[styles.section, { marginBottom: 48 }]}>
                     <View style={styles.sectionHeader}>
                         <Flame size={15} color="#8b5cf6" strokeWidth={2} />
@@ -600,7 +714,9 @@ export default function ProfileScreen() {
                                 ))}
                             </View>
                             <Text style={styles.streakHint}>
-                                {streak > 0 ? `${streak} dia${streak!==1?'s':''} consecutivo${streak!==1?'s':''}` : 'Registre um aprendizado para começar'}
+                                {streak > 0
+                                    ? `${streak} dia${streak !== 1 ? 's' : ''} consecutivo${streak !== 1 ? 's' : ''}`
+                                    : 'Registre um aprendizado para começar'}
                             </Text>
                         </View>
                     </View>
@@ -608,7 +724,13 @@ export default function ProfileScreen() {
 
             </ScrollView>
 
-            <EditModal visible={editVisible} profile={local} onSave={handleSave} onClose={() => setEditVisible(false)} saving={saving} />
+            <EditModal
+                visible={editVisible}
+                profile={local}
+                onSave={handleSave}
+                onClose={() => setEditVisible(false)}
+                saving={saving}
+            />
         </SafeAreaView>
     );
 }
@@ -666,16 +788,16 @@ const styles = StyleSheet.create({
     heatmapLegendTxt:  { color: '#44415a', fontSize: 10 },
     heatmapLegendCell: { width: 10, height: 10, borderRadius: 2 },
 
-    badgesGrid:    { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-    badgeCard:     { width: (SCREEN_W - 32 - 20) / 3, backgroundColor: '#16151d', borderRadius: 16, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: '#2a2040', shadowRadius: 10, elevation: 4 },
-    badgeIconWrap: { width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
-    badgeLabel:    { color: '#fff', fontSize: 10, fontWeight: '700', textAlign: 'center', marginBottom: 3 },
+    badgesGrid:       { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+    badgeCard:        { width: (SCREEN_W - 32 - 20) / 3, backgroundColor: '#16151d', borderRadius: 16, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: '#2a2040', shadowRadius: 10, elevation: 4 },
+    badgeIconWrap:    { width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+    badgeLabel:       { color: '#fff', fontSize: 10, fontWeight: '700', textAlign: 'center', marginBottom: 3 },
     badgeLabelLocked: { color: '#2a2040' },
-    badgeDesc:     { color: '#6b6880', fontSize: 9, textAlign: 'center', lineHeight: 12 },
-    badgeDot:      { width: 5, height: 5, borderRadius: 2.5, marginTop: 6 },
+    badgeDesc:        { color: '#6b6880', fontSize: 9, textAlign: 'center', lineHeight: 12 },
+    badgeDot:         { width: 5, height: 5, borderRadius: 2.5, marginTop: 6 },
 
     learnItem:       { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-    learnItemBorder: { paddingBottom: 14, marginBottom: 0, borderBottomWidth: 1, borderBottomColor: '#1e1c2e' },
+    learnItemBorder: { paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: '#1e1c2e' },
     learnDot:        { width: 6, height: 6, borderRadius: 3, backgroundColor: '#8b5cf6', marginTop: 5, flexShrink: 0 },
     learnContent:    { flex: 1 },
     learnText:       { color: '#d4d0e8', fontSize: 13, lineHeight: 19 },
@@ -714,21 +836,28 @@ const editStyles = StyleSheet.create({
     body:         { padding: 16, paddingBottom: 60 },
     label:        { color: '#7a7590', fontSize: 11, fontWeight: '600', marginBottom: 6, marginTop: 14, textTransform: 'uppercase', letterSpacing: 0.5 },
     input:        { backgroundColor: '#1a1826', borderRadius: 12, padding: 14, color: '#fff', fontSize: 15, borderWidth: 1, borderColor: '#2a2040' },
-    avatarPicker: { alignSelf: 'center', marginBottom: 4, position: 'relative' },
-    avatarPreview:{ width: 90, height: 90, borderRadius: 45 },
-    avatarPlaceholder:{ width: 90, height: 90, borderRadius: 45, backgroundColor: '#1a1826', borderWidth: 2, borderColor: '#2a2040', borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', gap: 4 },
-    avatarHint:   { color: '#7a7590', fontSize: 10 },
-    avatarOverlay:{ position: 'absolute', bottom: 0, right: 0, backgroundColor: '#8b5cf6', borderRadius: 12, padding: 5, borderWidth: 2, borderColor: '#0d0d10' },
-    addBtn:       { backgroundColor: '#8b5cf6', borderRadius: 12, padding: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 8 },
-    addBtnText:   { color: '#fff', fontWeight: '700', fontSize: 15 },
-    linkItem:     { backgroundColor: '#1a1826', borderRadius: 12, padding: 14, marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: '#2a2040' },
-    linkDot:      { width: 6, height: 6, borderRadius: 3, backgroundColor: '#8b5cf6', flexShrink: 0 },
-    linkLabel:    { color: '#fff', fontWeight: '600', fontSize: 14 },
-    linkUrl:      { color: '#7a7590', fontSize: 12, marginTop: 2 },
-    colorGrid:    { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 8 },
-    colorSwatch:  { width: 52, height: 52, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'transparent' },
+
+    // Avatar
+    avatarSection:      { alignItems: 'center', gap: 14, marginTop: 8, marginBottom: 4 },
+    avatarWrap:         { position: 'relative' },
+    avatarPreview:      { width: 96, height: 96, borderRadius: 48, borderWidth: 3, borderColor: '#2a2040' },
+    avatarPlaceholder:  { width: 96, height: 96, borderRadius: 48, backgroundColor: '#1a1826', borderWidth: 2, borderColor: '#2a2040', borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
+    avatarBtns:         { flexDirection: 'row', gap: 10 },
+    photoBtn:           { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#1a1826', borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10, borderWidth: 1, borderColor: '#2a2040' },
+    photoBtnText:       { color: '#8b5cf6', fontWeight: '700', fontSize: 13 },
+    uploadHint:         { color: '#6b6880', fontSize: 11 },
+
+    addBtn:     { backgroundColor: '#8b5cf6', borderRadius: 12, padding: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 8 },
+    addBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+    linkItem:   { backgroundColor: '#1a1826', borderRadius: 12, padding: 14, marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: '#2a2040' },
+    linkDot:    { width: 6, height: 6, borderRadius: 3, backgroundColor: '#8b5cf6', flexShrink: 0 },
+    linkLabel:  { color: '#fff', fontWeight: '600', fontSize: 14 },
+    linkUrl:    { color: '#7a7590', fontSize: 12, marginTop: 2 },
+
+    colorGrid:           { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 8 },
+    colorSwatch:         { width: 52, height: 52, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'transparent' },
     colorSwatchSelected: { borderColor: '#8b5cf6' },
-    preview:      { height: 72, borderRadius: 14, overflow: 'hidden', marginTop: 4 },
-    previewDots:  { flex: 1, flexDirection: 'row', flexWrap: 'wrap', padding: 12, gap: 10, opacity: 0.2 },
-    previewDot:   { width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#fff' },
+    preview:             { height: 72, borderRadius: 14, overflow: 'hidden', marginTop: 4 },
+    previewDots:         { flex: 1, flexDirection: 'row', flexWrap: 'wrap', padding: 12, gap: 10, opacity: 0.2 },
+    previewDot:          { width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#fff' },
 });
