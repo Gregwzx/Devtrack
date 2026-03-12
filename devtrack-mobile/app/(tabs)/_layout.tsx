@@ -1,3 +1,4 @@
+// app/(tabs)/_layout.tsx
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -24,11 +25,11 @@ export default function TabsLayout() {
                 }}
             />
             <Tabs.Screen
-                name="ranking"
+                name="suggestions"
                 options={{
-                    title: 'Ranking',
+                    title: 'Sugestões',
                     tabBarIcon: ({ color, size }) => (
-                        <Ionicons name="trophy" size={size} color={color} />
+                        <Ionicons name="bulb" size={size} color={color} />
                     ),
                 }}
             />
