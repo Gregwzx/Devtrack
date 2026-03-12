@@ -1,3 +1,4 @@
+// app/_layout.tsx
 import { DarkTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -25,10 +26,20 @@ function InnerLayout() {
     return (
         <View style={{ flex: 1 }}>
             <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="(tabs)" />
-                <Stack.Screen name="login" />
-                <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+                {/* Grupo de tabs — não aparece como tela avulsa */}
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+
+                {/* Login fora das tabs — tela de stack normal */}
+                <Stack.Screen name="login" options={{ headerShown: false, animation: 'fade' }} />
+
+                {/* Modal — apresentação modal real */}
+                <Stack.Screen
+                    name="modal"
+                    options={{ presentation: 'modal', headerShown: false }}
+                />
             </Stack>
+
+            {/* Splash sobreposta até estar pronta */}
             {(!splashDone || loading) && (
                 <SplashScreen onFinish={() => setSplashDone(true)} />
             )}

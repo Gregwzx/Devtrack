@@ -54,47 +54,51 @@ interface Level {
     perks: string[]; // what unlocks at this tier
 }
 
-// ─── Levels (4 career tiers) ──────────────────────────────────────────────────
+// ─── Levels — baseados em sugestões concluídas, não streak ────────────────────
 const LEVELS: Level[] = [
     {
         level: 1, title: 'Júnior', subtitle: 'Desenvolvedor Júnior',
-        minStreak: 0, maxStreak: 14,
+        minStreak: 0, maxStreak: 3,
         color: '#10b981', gradientA: '#10b981', gradientB: '#059669',
         Icon: Code2, badge: '🌱',
-        desc: 'Você está construindo a base. Cada dia conta.',
+        desc: 'Construindo a base. Cada conquista conta.',
         perks: ['Fundamentos de Git', 'HTML & CSS', 'JavaScript básico', 'Primeiro projeto'],
     },
     {
         level: 2, title: 'Pleno', subtitle: 'Desenvolvedor Pleno',
-        minStreak: 14, maxStreak: 30,
+        minStreak: 3, maxStreak: 8,
         color: '#06b6d4', gradientA: '#06b6d4', gradientB: '#0284c7',
         Icon: Layers, badge: '⚡',
-        desc: '2 semanas sólidas. Você está pegando ritmo.',
+        desc: 'Primeiros módulos concluídos. Pegando ritmo.',
         perks: ['Frameworks modernos', 'APIs REST', 'Banco de dados', 'Autenticação'],
     },
     {
         level: 3, title: 'Sênior', subtitle: 'Desenvolvedor Sênior',
-        minStreak: 30, maxStreak: 60,
+        minStreak: 8, maxStreak: 15,
         color: '#8b5cf6', gradientA: '#8b5cf6', gradientB: '#7c3aed',
         Icon: Trophy, badge: '🔥',
-        desc: '1 mês de dedicação. Você pensa em sistemas.',
+        desc: 'Consistência real. Você pensa em sistemas.',
         perks: ['Arquitetura limpa', 'Performance avançada', 'CI/CD', 'TypeScript expert'],
     },
     {
         level: 4, title: 'DevOps', subtitle: 'Engenheiro DevOps',
-        minStreak: 60, maxStreak: Infinity,
+        minStreak: 15, maxStreak: Infinity,
         color: '#FFD700', gradientA: '#FFD700', gradientB: '#f59e0b',
         Icon: Crown, badge: '👑',
-        desc: '60 dias ininterruptos. Você opera em escala.',
+        desc: 'Domínio total. Você opera em escala.',
         perks: ['Kubernetes & containers', 'Cloud architecture', 'Sistemas distribuídos', 'Compiladores'],
     },
 ];
 
-function getCurrentLevel(streak: number): Level {
-    return [...LEVELS].reverse().find(l => streak >= l.minStreak) ?? LEVELS[0];
+// completed = número de sugestões concluídas (não streak)
+function getCurrentLevel(completed: number): Level {
+    return [...LEVELS].reverse().find(l => completed >= l.minStreak) ?? LEVELS[0];
 }
-function getNextLevel(streak: number): Level | null {
-    return LEVELS.find(l => l.minStreak > streak) ?? null;
+function getNextLevel(completed: number): Level | null {
+    return LEVELS.find(l => l.minStreak > completed) ?? null;
+}
+function isUnlocked(s: Suggestion, completed: number): boolean {
+    return completed >= s.unlockStreak;
 }
 
 // ─── Suggestions Data ─────────────────────────────────────────────────────────
@@ -155,7 +159,7 @@ const ALL_SUGGESTIONS: Suggestion[] = [
         description: 'A base de qualquer aplicação React moderna.',
         detail: 'Entenda a diferença entre componentes funcionais e de classe (e por que funcionais venceram). Aprenda como props fluem de pai para filho. Domine useState para estado local. Pratique criando um componente de formulário controlado do zero.',
         tags: ['react', 'componentes', 'hooks'],
-        difficulty: 'iniciante', xp: 80, unlockStreak: 14,
+        difficulty: 'iniciante', xp: 80, unlockStreak: 3,
         category: 'frontend', Icon: Code2,
     },
     {
@@ -163,7 +167,7 @@ const ALL_SUGGESTIONS: Suggestion[] = [
         description: 'Adicione segurança e autocomplete ao seu código.',
         detail: 'Tipos básicos, interfaces, types, enums. Aprenda a tipar funções e generics simples. Ative "strict: true" no tsconfig. Dica chave: never deixe um any — ele anula toda a proteção do TypeScript.',
         tags: ['typescript', 'tipos', 'interfaces'],
-        difficulty: 'iniciante', xp: 85, unlockStreak: 14,
+        difficulty: 'iniciante', xp: 85, unlockStreak: 3,
         category: 'frontend', Icon: Shield,
     },
     {
@@ -171,7 +175,7 @@ const ALL_SUGGESTIONS: Suggestion[] = [
         description: 'Integre qualquer serviço e construa sua primeira API.',
         detail: 'Lado cliente: fetch com async/await, tratamento de erros, estados de loading. Lado servidor: Express.js com rotas GET/POST/PUT/DELETE, middlewares, CORS. Use Thunder Client ou Insomnia para testar. Pratique com a API pública do GitHub primeiro.',
         tags: ['api', 'rest', 'express', 'fetch'],
-        difficulty: 'intermediário', xp: 100, unlockStreak: 14,
+        difficulty: 'intermediário', xp: 100, unlockStreak: 3,
         category: 'backend', Icon: Server,
     },
     {
@@ -179,7 +183,7 @@ const ALL_SUGGESTIONS: Suggestion[] = [
         description: 'Dados relacionais com SELECT, JOIN, índices e transações.',
         detail: 'Domine SELECT com WHERE, ORDER BY, GROUP BY, HAVING. Todos os tipos de JOIN. Subqueries e CTEs. Índices: quando e por que criar. Transações: ACID na prática. Pratique com PostgreSQL local via Docker.',
         tags: ['sql', 'postgresql', 'database'],
-        difficulty: 'intermediário', xp: 110, unlockStreak: 14,
+        difficulty: 'intermediário', xp: 110, unlockStreak: 3,
         category: 'backend', Icon: Server,
     },
     {
@@ -187,7 +191,7 @@ const ALL_SUGGESTIONS: Suggestion[] = [
         description: 'Implemente login seguro sem depender de biblioteca mágica.',
         detail: 'JWT: header.payload.signature, access token curto + refresh token longo. Sessions: cookies httpOnly vs localStorage (e por que httpOnly é mais seguro). Implemente um fluxo completo: register → login → protected route → refresh → logout.',
         tags: ['jwt', 'auth', 'segurança', 'cookies'],
-        difficulty: 'intermediário', xp: 120, unlockStreak: 14,
+        difficulty: 'intermediário', xp: 120, unlockStreak: 3,
         category: 'backend', Icon: Shield,
     },
     {
@@ -195,7 +199,7 @@ const ALL_SUGGESTIONS: Suggestion[] = [
         description: 'Construa layouts 2D complexos que Flexbox não consegue.',
         detail: 'grid-template-columns, grid-template-rows, grid-area, grid-template-areas. Entenda a diferença: Grid para layout 2D (rows + cols), Flexbox para alinhamento 1D. Desafio: recrie o layout de uma dashboard completa sem position: absolute.',
         tags: ['css', 'grid', 'layout'],
-        difficulty: 'intermediário', xp: 90, unlockStreak: 14,
+        difficulty: 'intermediário', xp: 90, unlockStreak: 3,
         category: 'frontend', Icon: Layers,
     },
     {
@@ -203,7 +207,7 @@ const ALL_SUGGESTIONS: Suggestion[] = [
         description: 'Mobile cross-platform com a stack que você já conhece.',
         detail: 'Diferenças cruciais: View/Text/Image vs div/p/img, StyleSheet vs CSS, Flexbox como padrão. FlatList para listas performáticas. Navigation com Expo Router. AsyncStorage para persistência local. Publique um app na Expo Go.',
         tags: ['react native', 'mobile', 'expo'],
-        difficulty: 'intermediário', xp: 115, unlockStreak: 14,
+        difficulty: 'intermediário', xp: 115, unlockStreak: 3,
         category: 'mobile', Icon: Layers,
     },
 
@@ -213,7 +217,7 @@ const ALL_SUGGESTIONS: Suggestion[] = [
         description: 'Elimine re-renders desnecessários e domine padrões de composição.',
         detail: 'Profiling com React DevTools Profiler. React.memo, useMemo, useCallback — entenda referential equality. Padrões: compound components, render props, custom hooks. Lazy loading com React.lazy + Suspense. Code splitting com dynamic imports.',
         tags: ['react', 'performance', 'padrões'],
-        difficulty: 'avançado', xp: 150, unlockStreak: 30,
+        difficulty: 'avançado', xp: 150, unlockStreak: 8,
         category: 'frontend', Icon: Zap,
     },
     {
@@ -221,7 +225,7 @@ const ALL_SUGGESTIONS: Suggestion[] = [
         description: 'Escreva código altamente reutilizável com o TypeScript completo.',
         detail: 'Generics com constraints (<T extends object>). Utility types: Partial, Required, Pick, Omit, Record, ReturnType, Parameters. Mapped types e conditional types. Template literal types. Crie seus próprios utility types para o projeto.',
         tags: ['typescript', 'generics', 'tipos avançados'],
-        difficulty: 'avançado', xp: 155, unlockStreak: 30,
+        difficulty: 'avançado', xp: 155, unlockStreak: 8,
         category: 'frontend', Icon: Code2,
     },
     {
@@ -229,7 +233,7 @@ const ALL_SUGGESTIONS: Suggestion[] = [
         description: 'Separe responsabilidades e escreva código que dura anos.',
         detail: 'Camadas: Entities → Use Cases → Interface Adapters → Frameworks. Dependency Injection sem framework. Repository pattern para abstrair o banco. Regra de ouro: a lógica de negócio não conhece Express nem PostgreSQL. Teste um Use Case sem levantar servidor.',
         tags: ['arquitetura', 'clean code', 'solid', 'di'],
-        difficulty: 'avançado', xp: 180, unlockStreak: 30,
+        difficulty: 'avançado', xp: 180, unlockStreak: 8,
         category: 'backend', Icon: Brain,
     },
     {
@@ -237,7 +241,7 @@ const ALL_SUGGESTIONS: Suggestion[] = [
         description: 'Queries lentas nunca mais. Otimize com dados reais.',
         detail: 'EXPLAIN ANALYZE: leia o plano de execução. Sequential Scan vs Index Scan vs Bitmap Heap Scan. Índices B-Tree, GIN, GiST. Índices compostos e parciais. Particionamento de tabelas grandes. CTEs vs subqueries: quando cada um é mais rápido.',
         tags: ['postgresql', 'performance', 'índices', 'explain'],
-        difficulty: 'avançado', xp: 160, unlockStreak: 30,
+        difficulty: 'avançado', xp: 160, unlockStreak: 8,
         category: 'backend', Icon: Server,
     },
     {
@@ -245,7 +249,7 @@ const ALL_SUGGESTIONS: Suggestion[] = [
         description: 'Código que você consegue mudar sem medo.',
         detail: 'Unitários com Vitest/Jest: teste lógica pura sem dependências externas. Integração com Supertest: teste as rotas da sua API. E2E com Playwright: simule o usuário real. TDD na prática: escreva o teste antes, veja falhar, faça passar, refatore.',
         tags: ['testes', 'jest', 'tdd', 'playwright'],
-        difficulty: 'avançado', xp: 165, unlockStreak: 30,
+        difficulty: 'avançado', xp: 165, unlockStreak: 8,
         category: 'cs', Icon: Shield,
     },
     {
@@ -253,7 +257,7 @@ const ALL_SUGGESTIONS: Suggestion[] = [
         description: 'LCP, INP e CLS — as métricas que afetam SEO e conversão.',
         detail: 'Meça com Lighthouse e PageSpeed Insights. LCP: otimize imagens (WebP, lazy loading, preload). INP: reduza blocking JavaScript. CLS: reserve espaço para imagens e ads. Técnicas: critical CSS inline, font-display: swap, resource hints (preload/prefetch).',
         tags: ['performance', 'web vitals', 'lighthouse', 'seo'],
-        difficulty: 'avançado', xp: 155, unlockStreak: 30,
+        difficulty: 'avançado', xp: 155, unlockStreak: 8,
         category: 'frontend', Icon: Zap,
     },
 
@@ -263,7 +267,7 @@ const ALL_SUGGESTIONS: Suggestion[] = [
         description: 'Containerize qualquer stack e gerencie ambientes com compose.',
         detail: 'Multi-stage builds para reduzir tamanho de imagem. docker-compose com health checks, volumes nomeados e redes. Secrets management sem expor variáveis no Dockerfile. Publique no Docker Hub e use no CI. Entenda por que containers são efêmeros.',
         tags: ['docker', 'containers', 'compose'],
-        difficulty: 'avançado', xp: 190, unlockStreak: 60,
+        difficulty: 'avançado', xp: 190, unlockStreak: 15,
         category: 'devops', Icon: Cpu,
     },
     {
@@ -271,7 +275,7 @@ const ALL_SUGGESTIONS: Suggestion[] = [
         description: 'Automatize testes, builds e deploys em cada push.',
         detail: 'Crie workflows: lint + test em PRs, build + deploy em merge para main. Matrix builds para testar múltiplas versões do Node. Secrets e environments para staging vs produção. Cache de dependências para builds mais rápidos. Deploy automatizado para Vercel/Railway/Render.',
         tags: ['ci/cd', 'github actions', 'automação', 'deploy'],
-        difficulty: 'avançado', xp: 200, unlockStreak: 60,
+        difficulty: 'avançado', xp: 200, unlockStreak: 15,
         category: 'devops', Icon: Rocket,
     },
     {
@@ -279,7 +283,7 @@ const ALL_SUGGESTIONS: Suggestion[] = [
         description: 'Escale, gerencie e recupere containers automaticamente.',
         detail: 'Conceitos: Pods, Deployments, Services, Ingress, ConfigMaps, Secrets. minikube para praticar localmente. Liveness e readiness probes. HPA (Horizontal Pod Autoscaler) baseado em CPU/memória. Rolling updates e rollbacks. Helm charts para gerenciar aplicações complexas.',
         tags: ['kubernetes', 'k8s', 'orquestração'],
-        difficulty: 'avançado', xp: 240, unlockStreak: 60,
+        difficulty: 'avançado', xp: 240, unlockStreak: 15,
         category: 'devops', Icon: Shield,
     },
     {
@@ -287,7 +291,7 @@ const ALL_SUGGESTIONS: Suggestion[] = [
         description: 'Entenda como sistemas reais falham e como projetá-los para isso.',
         detail: 'CAP Theorem: você só tem 2 dos 3 (Consistency, Availability, Partition tolerance). Eventual consistency vs strong consistency. Algoritmo Raft de consenso (mais legível que Paxos). Event sourcing e CQRS. Leitura essencial: "Designing Data-Intensive Applications" de Kleppmann.',
         tags: ['sistemas distribuídos', 'cap', 'consenso'],
-        difficulty: 'avançado', xp: 280, unlockStreak: 60,
+        difficulty: 'avançado', xp: 280, unlockStreak: 15,
         category: 'cs', Icon: Brain,
     },
     {
@@ -295,7 +299,7 @@ const ALL_SUGGESTIONS: Suggestion[] = [
         description: 'O conhecimento que separa devs de arquitetos de linguagem.',
         detail: 'Implemente um lexer (tokenizer) e um parser descendente recursivo para uma linguagem simples. Construa a AST (Abstract Syntax Tree). Adicione um interpretador simples. Guia: "Crafting Interpreters" de Robert Nystrom (gratuito online). Esse conhecimento muda como você pensa em abstrações.',
         tags: ['compiladores', 'ast', 'parser', 'teoria'],
-        difficulty: 'avançado', xp: 320, unlockStreak: 60,
+        difficulty: 'avançado', xp: 320, unlockStreak: 15,
         category: 'cs', Icon: Cpu,
     },
 ];
@@ -373,17 +377,17 @@ const cm = StyleSheet.create({
 
 // ─── Detail Modal ─────────────────────────────────────────────────────────────
 function DetailModal({
-    visible, suggestion, streak, onClose, onComplete, completed,
+    visible, suggestion, completedCount, onClose, onComplete, completed,
 }: {
     visible: boolean;
     suggestion: Suggestion | null;
-    streak: number;
+    completedCount: number;
     onClose: () => void;
     onComplete: () => void;
     completed: boolean;
 }) {
     if (!suggestion) return null;
-    const unlocked    = streak >= suggestion.unlockStreak;
+    const unlocked    = isUnlocked(suggestion, completedCount);
     const catColor    = CATEGORY_COLORS[suggestion.category];
     const diffColor   = DIFF_COLORS[suggestion.difficulty];
 
@@ -442,8 +446,8 @@ function DetailModal({
                         <View style={dm.lockBox}>
                             <Lock size={18} color="#6b6880" strokeWidth={2} />
                             <Text style={dm.lockText}>
-                                Disponível a partir de {suggestion.unlockStreak} dias de sequência{'\n'}
-                                (você tem {streak} dias — faltam {suggestion.unlockStreak - streak})
+                                Disponível após {suggestion.unlockStreak} conclusões{'\n'}
+                                (você tem {completedCount} — faltam {suggestion.unlockStreak - completedCount})
                             </Text>
                         </View>
                     )}
@@ -499,11 +503,11 @@ const dm = StyleSheet.create({
 
 // ─── Suggestion Card ──────────────────────────────────────────────────────────
 function SuggestionCard({
-    s, streak, completed, onPress, delay,
+    s, completedCount, completed, onPress, delay,
 }: {
-    s: Suggestion; streak: number; completed: boolean; onPress: () => void; delay: number;
+    s: Suggestion; completedCount: number; completed: boolean; onPress: () => void; delay: number;
 }) {
-    const unlocked  = streak >= s.unlockStreak;
+    const unlocked  = isUnlocked(s, completedCount);
     const catColor  = CATEGORY_COLORS[s.category];
     const diffColor = DIFF_COLORS[s.difficulty];
     const scale     = useSharedValue(1);
@@ -542,7 +546,7 @@ function SuggestionCard({
                         {completed && <CheckCircle size={14} color="#10b981" strokeWidth={2.5} />}
                     </View>
                     <Text style={[styles.cardDesc, !unlocked && styles.cardDescLocked]} numberOfLines={2}>
-                        {unlocked ? s.description : `🔒 Desbloqueio: ${s.unlockStreak} dias de sequência`}
+                        {unlocked ? s.description : `Desbloqueio após ${s.unlockStreak} conclusões`}
                     </Text>
                     <View style={styles.cardFooter}>
                         {unlocked && (
@@ -556,8 +560,8 @@ function SuggestionCard({
                         </View>
                         {!unlocked && (
                             <View style={styles.streakReq}>
-                                <Flame size={9} color="#44415a" strokeWidth={2} />
-                                <Text style={styles.streakReqText}>{s.unlockStreak}d</Text>
+                                <Target size={9} color="#44415a" strokeWidth={2} />
+                                <Text style={styles.streakReqText}>{s.unlockStreak} concl.</Text>
                             </View>
                         )}
                     </View>
@@ -570,54 +574,63 @@ function SuggestionCard({
 }
 
 // ─── Level Badge ──────────────────────────────────────────────────────────────
-function LevelBadge({ level, streak }: { level: Level; streak: number }) {
-    const next     = getNextLevel(streak);
-    const progress = next ? (streak - level.minStreak) / (next.minStreak - level.minStreak) : 1;
-    const barW     = useSharedValue(0);
+function LevelBadge({ level, completedCount }: { level: Level; completedCount: number }) {
+    const next     = getNextLevel(completedCount);
+    const progress = next
+        ? (completedCount - level.minStreak) / (next.minStreak - level.minStreak)
+        : 1;
+    const barW = useSharedValue(0);
 
     useEffect(() => {
-        barW.value = withDelay(400, withSpring(progress, { damping: 14 }));
+        barW.value = withDelay(400, withSpring(Math.min(progress, 1), { damping: 14, stiffness: 80 }));
     }, [progress]);
 
     const barStyle = useAnimatedStyle(() => ({
         width: `${Math.min(barW.value * 100, 100)}%` as any,
     }));
 
-    const isMax = !next;
+    const isMax   = !next;
+    const NextIcon = next?.Icon ?? null;
+
+    const LevelIcon = level.Icon;
 
     return (
         <Animated.View entering={FadeInUp.duration(500).springify()} style={[lb.wrap, { borderColor: level.color + '40' }]}>
             {/* Top row */}
             <View style={lb.topRow}>
+                {/* Lucide icon — sem emoji */}
                 <View style={[lb.iconWrap, { backgroundColor: level.color + '20', borderColor: level.color + '50' }]}>
-                    <Text style={lb.badge}>{level.badge}</Text>
+                    <LevelIcon size={24} color={level.color} strokeWidth={2} />
                 </View>
                 <View style={{ flex: 1 }}>
                     <Text style={lb.subtitle}>{level.subtitle}</Text>
                     <Text style={[lb.title, { color: level.color }]}>{level.title}</Text>
                     <Text style={lb.desc}>{level.desc}</Text>
                 </View>
+                {/* Completed count */}
                 <View style={[lb.streakWrap, { backgroundColor: level.color + '18' }]}>
-                    <Flame size={12} color={level.color} strokeWidth={2} />
-                    <Text style={[lb.streakNum, { color: level.color }]}>{streak}</Text>
-                    <Text style={lb.streakLabel}>dias</Text>
+                    <CheckCircle size={12} color={level.color} strokeWidth={2.5} />
+                    <Text style={[lb.streakNum, { color: level.color }]}>{completedCount}</Text>
+                    <Text style={lb.streakLabel}>concl.</Text>
                 </View>
             </View>
 
-            {/* Progress to next */}
+            {/* Progress bar animated */}
             {!isMax ? (
                 <View style={lb.progressSection}>
                     <View style={lb.progressRow}>
-                        <Text style={lb.progressLabel}>
-                            Próximo: <Text style={{ color: next!.color, fontWeight: '700' }}>{next!.badge} {next!.title}</Text>
-                        </Text>
-                        <Text style={lb.progressLabel}>{streak}/{next!.minStreak}d</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                            <Text style={lb.progressLabel}>Próximo: </Text>
+                            {NextIcon && <NextIcon size={11} color={next!.color} strokeWidth={2} />}
+                            <Text style={{ color: next!.color, fontWeight: '700', fontSize: 11 }}> {next!.title}</Text>
+                        </View>
+                        <Text style={lb.progressLabel}>{completedCount}/{next!.minStreak}</Text>
                     </View>
                     <View style={lb.track}>
                         <Animated.View style={[lb.fill, { backgroundColor: level.color }, barStyle]} />
                     </View>
                     <Text style={lb.progressHint}>
-                        Faltam {next!.minStreak - streak} dia{next!.minStreak - streak !== 1 ? 's' : ''} de sequência
+                        Faltam {next!.minStreak - completedCount} conclusão{next!.minStreak - completedCount !== 1 ? 'ões' : ''}
                     </Text>
                 </View>
             ) : (
@@ -627,19 +640,24 @@ function LevelBadge({ level, streak }: { level: Level; streak: number }) {
                 </View>
             )}
 
-            {/* All 4 tier indicators */}
+            {/* Tier trail — Lucide icons, sem emoji */}
             <View style={lb.tiersRow}>
-                {LEVELS.map((lv, i) => {
-                    const reached = streak >= lv.minStreak;
+                {LEVELS.map((lv) => {
+                    const reached = completedCount >= lv.minStreak;
                     const current = lv.level === level.level;
+                    const TierIcon = lv.Icon;
                     return (
                         <View key={lv.level} style={lb.tierItem}>
                             <View style={[
                                 lb.tierDot,
-                                reached && { backgroundColor: lv.color },
-                                current && { borderColor: lv.color, borderWidth: 2, width: 14, height: 14 },
+                                reached && { backgroundColor: lv.color + '22', borderColor: lv.color },
+                                current && { borderWidth: 2, width: 34, height: 34, borderRadius: 10 },
                             ]}>
-                                {reached && <Text style={{ fontSize: 7 }}>{lv.badge}</Text>}
+                                <TierIcon
+                                    size={current ? 18 : 14}
+                                    color={reached ? lv.color : '#2a2040'}
+                                    strokeWidth={reached ? 2 : 1.5}
+                                />
                             </View>
                             <Text style={[lb.tierLabel, reached && { color: lv.color }]} numberOfLines={1}>
                                 {lv.title}
@@ -656,7 +674,7 @@ const lb = StyleSheet.create({
     wrap:          { backgroundColor: '#16151d', borderRadius: 20, padding: 16, marginHorizontal: 16, marginBottom: 16, borderWidth: 1 },
     topRow:        { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 14 },
     iconWrap:      { width: 52, height: 52, borderRadius: 15, alignItems: 'center', justifyContent: 'center', borderWidth: 1, flexShrink: 0 },
-    badge:         { fontSize: 24 },
+    badge:         { fontSize: 24 }, // kept for TS compatibility
     subtitle:      { color: '#44415a', fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 2 },
     title:         { fontSize: 20, fontWeight: '900', letterSpacing: -0.3 },
     desc:          { color: '#6b6880', fontSize: 11, marginTop: 3 },
@@ -673,7 +691,7 @@ const lb = StyleSheet.create({
     maxText:       { fontSize: 12, fontWeight: '700' },
     tiersRow:      { flexDirection: 'row', borderTopWidth: 1, borderTopColor: '#1e1c2e', paddingTop: 12 },
     tierItem:      { flex: 1, alignItems: 'center', gap: 5 },
-    tierDot:       { width: 10, height: 10, borderRadius: 5, backgroundColor: '#2a2040', alignItems: 'center', justifyContent: 'center' },
+    tierDot:       { width: 30, height: 30, borderRadius: 9, backgroundColor: '#1a1826', borderWidth: 1, borderColor: '#2a2040', alignItems: 'center', justifyContent: 'center' },
     tierLabel:     { color: '#2a2040', fontSize: 9, fontWeight: '700', textAlign: 'center' },
 });
 
@@ -725,6 +743,7 @@ export default function SuggestionsScreen() {
     const [pendingConfirm,setPendingConfirm]=useState<Suggestion|null>(null);
 
     const STORAGE_KEY = keys ? `${keys.profile}_SUGGESTIONS_DONE` : null;
+    const XP_KEY      = keys ? `${keys.profile}_SUGGESTIONS_XP`   : null;
 
     useEffect(() => {
         const load = async () => {
@@ -746,23 +765,29 @@ export default function SuggestionsScreen() {
     };
 
     const confirmComplete = async () => {
-        if (!pendingConfirm || !STORAGE_KEY) return;
-        const updated = new Set(completed).add(pendingConfirm.id);
+        if (!pendingConfirm || !STORAGE_KEY || !XP_KEY) return;
+        const updated   = new Set(completed).add(pendingConfirm.id);
+        // Accumulate XP from all completed suggestions
+        const newTotalXp = [...updated].reduce((acc, id) => {
+            const s = ALL_SUGGESTIONS.find(s => s.id === id);
+            return acc + (s?.xp ?? 0);
+        }, 0);
         setCompleted(updated);
         await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify([...updated]));
+        await AsyncStorage.setItem(XP_KEY, String(newTotalXp));
         setShowConfirm(false);
         setPendingConfirm(null);
     };
 
-    const currentLevel = getCurrentLevel(streak);
+    const currentLevel = getCurrentLevel(completed.size);
     const totalXp      = [...completed].reduce((acc, id) => {
         const s = ALL_SUGGESTIONS.find(s => s.id === id);
         return acc + (s?.xp ?? 0);
     }, 0);
 
     const filtered = ALL_SUGGESTIONS.filter(s => {
-        if (filter === 'available') return streak >= s.unlockStreak && !completed.has(s.id);
-        if (filter === 'locked')    return streak < s.unlockStreak;
+        if (filter === 'available') return completed.size >= s.unlockStreak && !completed.has(s.id);
+        if (filter === 'locked')    return completed.size < s.unlockStreak;
         if (filter === 'done')      return completed.has(s.id);
         return true;
     });
@@ -787,7 +812,7 @@ export default function SuggestionsScreen() {
             </Animated.View>
 
             {/* Level Badge */}
-            <LevelBadge level={currentLevel} streak={streak} />
+            <LevelBadge level={currentLevel} completedCount={completed.size} />
 
             {/* XP Summary */}
             <XPSummary totalXp={totalXp} completed={completed.size} />
@@ -813,21 +838,22 @@ export default function SuggestionsScreen() {
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
                 {grouped.map(({ level, items }, gi) => {
-                    const unlocked = streak >= level.minStreak;
+                    const unlocked = completed.size >= level.minStreak;
                     const completedInGroup = items.filter(s => completed.has(s.id)).length;
+                    const GroupIcon = level.Icon;
                     return (
                         <View key={level.level} style={styles.group}>
                             {/* Group header */}
                             <View style={[styles.groupHeader, { borderColor: unlocked ? level.color + '35' : '#2a2040', backgroundColor: unlocked ? level.color + '08' : '#16151d' }]}>
                                 <View style={[styles.groupIconWrap, { backgroundColor: unlocked ? level.color + '20' : '#1a1826', borderColor: unlocked ? level.color + '50' : '#2a2040' }]}>
-                                    <Text style={{ fontSize: 18 }}>{level.badge}</Text>
+                                    <GroupIcon size={20} color={unlocked ? level.color : '#2a2040'} strokeWidth={2} />
                                 </View>
                                 <View style={{ flex: 1 }}>
                                     <Text style={[styles.groupTitle, { color: unlocked ? level.color : '#44415a' }]}>
-                                        {level.badge} {level.title}
+                                        {level.title}
                                     </Text>
                                     <Text style={[styles.groupSub, unlocked && { color: '#6b6880' }]}>
-                                        {unlocked ? level.desc : `🔒 Disponível em ${level.minStreak} dias de sequência`}
+                                        {unlocked ? level.desc : `Disponível após ${level.minStreak} conclusões`}
                                     </Text>
                                 </View>
                                 <View style={styles.groupProgress}>
@@ -838,8 +864,8 @@ export default function SuggestionsScreen() {
                                     )}
                                     {!unlocked && (
                                         <View style={styles.lockChip}>
-                                            <Flame size={10} color="#44415a" strokeWidth={2} />
-                                            <Text style={styles.lockChipText}>{level.minStreak}d</Text>
+                                            <Lock size={10} color="#44415a" strokeWidth={2} />
+                                            <Text style={styles.lockChipText}>{level.minStreak}</Text>
                                         </View>
                                     )}
                                 </View>
@@ -849,7 +875,7 @@ export default function SuggestionsScreen() {
                                 <SuggestionCard
                                     key={s.id}
                                     s={s}
-                                    streak={streak}
+                                    completedCount={completed.size}
                                     completed={completed.has(s.id)}
                                     delay={gi * 60 + i * 45}
                                     onPress={() => { setSelected(s); setShowDetail(true); }}
@@ -873,7 +899,7 @@ export default function SuggestionsScreen() {
             <DetailModal
                 visible={showDetail}
                 suggestion={selected}
-                streak={streak}
+                completedCount={completed.size}
                 onClose={() => setShowDetail(false)}
                 onComplete={() => selected && handleComplete(selected)}
                 completed={selected ? completed.has(selected.id) : false}
