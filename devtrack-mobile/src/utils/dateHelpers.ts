@@ -1,8 +1,12 @@
 // utils/dateHelpers.ts
+// Funções de data que uso em várias telas. Centralizei aqui pra não
+// ficar repetindo a mesma lógica em todo lugar — e pra não errar fuso horário
+// em produção (já aprendi da forma difícil que Date() tem suas armadilhas).
 
 /**
- * Returns today's date as a locale-independent string key (YYYY-MM-DD).
- * Avoids timezone bugs when comparing streak days.
+ * Retorna a data de hoje como string YYYY-MM-DD, independente de fuso.
+ * Usei esse formato porque facilita comparação direta entre strings —
+ * muito mais simples do que comparar timestamps no streak.
  */
 export function todayKey(): string {
     const d = new Date();
@@ -10,7 +14,8 @@ export function todayKey(): string {
 }
 
 /**
- * Returns yesterday's date key (YYYY-MM-DD).
+ * Ontem. Precisei separar porque o streak depende de saber
+ * se o usuário estudou "hoje ou ontem" — não só "hoje".
  */
 export function yesterdayKey(): string {
     const d = new Date();
@@ -19,7 +24,8 @@ export function yesterdayKey(): string {
 }
 
 /**
- * Converts any Date or ISO string to a YYYY-MM-DD key.
+ * Converte qualquer Date ou ISO string para a chave YYYY-MM-DD.
+ * Útil quando preciso comparar datas vindas do AsyncStorage (sempre ISO string).
  */
 export function toDateKey(date: Date | string): string {
     const d = typeof date === 'string' ? new Date(date) : date;
@@ -27,7 +33,8 @@ export function toDateKey(date: Date | string): string {
 }
 
 /**
- * Returns a human-readable "time ago" string in Portuguese.
+ * "Há quanto tempo?" aparece embaixo de cada registro na home.
+ * Os intervalos foram escolhidos pra parecer natural de ler, não cronômetro.
  */
 export function formatAgo(date: Date | string): string {
     const d    = typeof date === 'string' ? new Date(date) : date;
@@ -39,11 +46,13 @@ export function formatAgo(date: Date | string): string {
     if (hrs < 24)   return `${hrs}h atrás`;
     const days = Math.floor(hrs / 24);
     if (days < 7)   return `${days}d atrás`;
+    // depois de uma semana, mostra a data — "27 de jan" é mais legível que "9d atrás"
     return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
 }
 
 /**
- * Formats a date for display in the app header.
+ * Data formatada pra aparecer no header da home: "segunda-feira, 27 de janeiro".
+ * O textTransform: 'capitalize' no estilo cuida de deixar a primeira letra maiúscula.
  */
 export function formatHeaderDate(date: Date = new Date()): string {
     return date.toLocaleDateString('pt-BR', {
@@ -54,7 +63,8 @@ export function formatHeaderDate(date: Date = new Date()): string {
 }
 
 /**
- * Returns true if two date keys (YYYY-MM-DD) are consecutive days.
+ * Verifica se dois dias são consecutivos — usado pra validar o streak.
+ * A diferença exata de 86.400.000ms é um dia (sem DST isso funciona bem).
  */
 export function areConsecutiveDays(keyA: string, keyB: string): boolean {
     const a = new Date(keyA);

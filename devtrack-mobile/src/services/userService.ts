@@ -1,4 +1,8 @@
 // src/services/userService.ts
+// Toda a comunicação com Firestore e AsyncStorage passa por aqui.
+// A estratégia é sempre: tenta Firestore, se falhar usa cache local.
+// Isso garante que o app funciona offline sem travar.
+
 import {
     doc,
     setDoc,
@@ -44,7 +48,7 @@ export interface UserData {
     studyArea: StudyArea;
     bannerColor: string;
     links: SocialLink[];
-    createdAt?: any;
+    createdAt?: any;  // serverTimestamp do Firestore — tipo any por conta do FieldValue
     updatedAt?: any;
 }
 
@@ -58,10 +62,11 @@ export interface RankingUser {
     isYou?: boolean;
 }
 
-// ─── Chaves com namespace por email ───────────────────────────────────────────
-// Isso garante que cada conta tem dados isolados no dispositivo.
+// ─── Chaves de storage com namespace por email ────────────────────────────────
+// Cada conta tem suas próprias chaves no AsyncStorage — evita que dados de
+// uma conta apareçam pra outra no mesmo dispositivo (ex: dois usuários no mesmo celular).
 function key(email: string, suffix: string) {
-    // sanitiza o email para usar como chave
+    // sanitiza o email pra virar uma chave válida sem caracteres especiais
     const safe = email.replace(/[^a-z0-9]/gi, '_').toLowerCase();
     return `DEVTRACK_${safe}_${suffix}`;
 }
@@ -73,13 +78,14 @@ export function getStorageKeys(email: string) {
         learnings: key(email, 'LEARNINGS'),
         stats:     key(email, 'STATS'),
         area:      key(email, 'STUDY_AREA'),
-        session:   key(email, 'SESSION_START'),
-        cache:     key(email, 'USER_CACHE'),
+        session:   key(email, 'SESSION_START'),  // timestamp do início da sessão do dia
+        cache:     key(email, 'USER_CACHE'),     // snapshot do Firestore pra uso offline
     };
 }
 
-
-// ─── Criar / Atualizar perfil no Firestore ────────────────────────────────────
+// ─── Criar / atualizar perfil no Firestore ────────────────────────────────────
+// Chamado logo após o cadastro. Se o documento já existir (ex: reinstalação
+// do app), só atualiza a foto — não sobrescreve dados do usuário.
 export async function createOrUpdateUserProfile(firebaseUser: User): Promise<void> {
     const ref  = doc(db, 'users', firebaseUser.uid);
     const snap = await getDoc(ref);
@@ -97,18 +103,20 @@ export async function createOrUpdateUserProfile(firebaseUser: User): Promise<voi
             learnings:      [],
             totalHours:     0,
             skills:         0,
-            studyArea:      'fullstack',
+            studyArea:      'fullstack',  // padrão inicial — usuário pode mudar depois
             bannerColor:    '#1a1040',
             links:          [],
             createdAt:      serverTimestamp(),
             updatedAt:      serverTimestamp(),
         };
         await setDoc(ref, newUser);
+        // salva no cache local também pra funcionar offline logo de cara
         if (firebaseUser.email) {
             const keys = getStorageKeys(firebaseUser.email);
             await AsyncStorage.setItem(keys.cache, JSON.stringify(newUser));
         }
     } else {
+        // usuário já existe (reinstalação) — só atualiza a foto por segurança
         await updateDoc(ref, {
             photoURL:  firebaseUser.photoURL,
             updatedAt: serverTimestamp(),
@@ -121,6 +129,8 @@ export async function createOrUpdateUserProfile(firebaseUser: User): Promise<voi
 }
 
 // ─── Busca dados do usuário ───────────────────────────────────────────────────
+// Tenta Firestore primeiro, cai pro cache se estiver offline.
+// O cache é atualizado a cada leitura bem-sucedida do Firestore.
 export async function getUserData(uid: string, email?: string): Promise<UserData | null> {
     try {
         const ref  = doc(db, 'users', uid);
@@ -128,6 +138,7 @@ export async function getUserData(uid: string, email?: string): Promise<UserData
         if (snap.exists()) {
             const data = snap.data() as UserData;
             if (email) {
+                // atualiza o cache enquanto tiver conexão
                 const keys = getStorageKeys(email);
                 await AsyncStorage.setItem(keys.cache, JSON.stringify(data));
             }
@@ -146,12 +157,14 @@ export async function getUserData(uid: string, email?: string): Promise<UserData
 }
 
 // ─── Salva perfil completo ────────────────────────────────────────────────────
+// Nota: upload de foto não está implementado (Firebase Storage é pago).
+// Por enquanto a URI local fica salva diretamente — funciona, mas não persiste
+// entre dispositivos. Fica pra uma versão futura quando tiver Storage configurado.
 export async function saveProfile(
     uid: string,
     email: string,
     profile: Partial<UserData> & { localPhotoUri?: string },
 ): Promise<string | null> {
-    // Foto salva como URI local (sem upload — Storage não disponível no plano gratuito)
     const finalPhotoURL: string | null = profile.localPhotoUri ?? profile.photoURL ?? null;
 
     const payload: Partial<UserData> = {
@@ -159,9 +172,8 @@ export async function saveProfile(
         photoURL: finalPhotoURL,
         updatedAt: serverTimestamp(),
     };
-    delete (payload as any).localPhotoUri;
+    delete (payload as any).localPhotoUri;  // não salva o campo extra no Firestore
 
-    // Salva no Firestore
     try {
         const ref = doc(db, 'users', uid);
         await updateDoc(ref, payload);
@@ -169,7 +181,7 @@ export async function saveProfile(
         console.warn('Erro ao salvar perfil no Firestore, mantendo local');
     }
 
-    // Salva localmente com chave baseada no email
+    // sempre salva local, independente do Firestore funcionar ou não
     const keys = getStorageKeys(email);
     const raw  = await AsyncStorage.getItem(keys.profile);
     const local = raw ? JSON.parse(raw) : {};
@@ -180,7 +192,9 @@ export async function saveProfile(
     return finalPhotoURL;
 }
 
-// ─── Salva streak ─────────────────────────────────────────────────────────────
+// ─── Streak ───────────────────────────────────────────────────────────────────
+// Salva em dois lugares ao mesmo tempo pra garantir consistência.
+// O local é fonte de verdade no dia a dia; o Firestore é backup e ranking.
 export async function saveStreak(
     uid: string,
     email: string,
@@ -197,7 +211,10 @@ export async function saveStreak(
     await AsyncStorage.setItem(keys.streak, JSON.stringify({ count: streak, lastDate }));
 }
 
-// ─── Salva aprendizados ───────────────────────────────────────────────────────
+// ─── Aprendizados ─────────────────────────────────────────────────────────────
+// Salva a lista inteira a cada mudança — simples e funciona bem na escala
+// que o app está agora. Se a lista crescer muito, vai precisar de uma abordagem
+// mais incremental (ex: subcoleção no Firestore).
 export async function saveLearnings(
     uid: string,
     email: string,
@@ -213,7 +230,7 @@ export async function saveLearnings(
     await AsyncStorage.setItem(keys.learnings, JSON.stringify(learnings));
 }
 
-// ─── Salva área de estudo ─────────────────────────────────────────────────────
+// ─── Área de estudo ───────────────────────────────────────────────────────────
 export async function saveStudyArea(
     uid: string,
     email: string,
@@ -230,6 +247,8 @@ export async function saveStudyArea(
 }
 
 // ─── Ranking global ───────────────────────────────────────────────────────────
+// Busca os top 50 por streak e deixa a chamada re-ordenar por learnings se precisar.
+// Limit 50 é suficiente pra exibir um ranking motivador sem sobrecarregar a leitura.
 export async function getGlobalRanking(
     currentUid: string,
     sortBy: 'streak' | 'learnings' = 'streak',
@@ -246,7 +265,7 @@ export async function getGlobalRanking(
                 streak:    data.streak ?? 0,
                 learnings: data.learnings?.length ?? 0,
                 studyArea: data.studyArea ?? 'fullstack',
-                isYou:     data.uid === currentUid,
+                isYou:     data.uid === currentUid,  // destaca o usuário atual no ranking
             };
         });
         return users.sort((a, b) => b[sortBy] - a[sortBy]);

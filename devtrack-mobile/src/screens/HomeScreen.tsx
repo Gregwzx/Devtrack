@@ -1,7 +1,7 @@
-// src/screens/HomeScreen.tsx
+// src/screens/HomeScreen.tsx — com paralaxe no header + animações de seção
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
-    ScrollView, StyleSheet, View, Text, TouchableOpacity,
+    StyleSheet, View, Text, TouchableOpacity,
     Pressable, Dimensions,
 } from 'react-native';
 import AddLearningModal from '../components/home/AddLearningModal';
@@ -9,7 +9,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, {
     FadeInDown, FadeInUp,
     useSharedValue, useAnimatedStyle, useAnimatedProps,
-    withSpring, withRepeat, withTiming, withDelay,
+    withSpring, withRepeat, withTiming, withDelay, withSequence,
+    interpolate, Extrapolation,
 } from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -22,6 +23,7 @@ import { useAuth } from '../context/AuthContext';
 import { saveStreak, saveLearnings, getStorageKeys } from '../services/userService';
 import { AREA_CONFIG } from '../constants/areas';
 import { todayKey, yesterdayKey, formatHeaderDate, formatAgo } from '../../utils/dateHelpers';
+import { useParallaxScroll, useFilterTransition, PARALLAX_HEIGHT } from '../hooks/useParallaxScroll';
 import type { StudyArea } from '../services/ai.service';
 
 const { width: SW } = Dimensions.get('window');
@@ -65,9 +67,7 @@ const MODES = [
 ] as const;
 type ModeIdx = 0 | 1 | 2;
 
-function PomodoroTimer({ onAddLearning }: {
-    onAddLearning: (text: string, meta?: any) => void;
-}) {
+function PomodoroTimer({ onAddLearning }: { onAddLearning: (text: string, meta?: any) => void }) {
     const [modeIdx,    setModeIdx]    = useState<ModeIdx>(0);
     const [running,    setRunning]    = useState(false);
     const [seconds,    setSeconds]    = useState(MODES[0].minutes * 60);
@@ -81,7 +81,6 @@ function PomodoroTimer({ onAddLearning }: {
     const secs    = seconds % 60;
     const progress = (total - seconds) / total;
 
-    // Animated SVG ring
     const RING_SIZE = 210;
     const RADIUS    = 86;
     const CIRCUM    = 2 * Math.PI * RADIUS;
@@ -95,7 +94,6 @@ function PomodoroTimer({ onAddLearning }: {
         strokeDashoffset: CIRCUM * (1 - Math.min(ringAnim.value, 1)),
     }));
 
-    // Subtle pulse on the ring when running
     const glow = useSharedValue(0.6);
     useEffect(() => {
         if (running) {
@@ -106,7 +104,6 @@ function PomodoroTimer({ onAddLearning }: {
     }, [running]);
     const glowStyle = useAnimatedStyle(() => ({ opacity: glow.value }));
 
-    // Timer tick
     useEffect(() => {
         if (running) {
             intervalRef.current = setInterval(() => {
@@ -157,7 +154,6 @@ function PomodoroTimer({ onAddLearning }: {
             </View>
 
             <View style={pm.card}>
-                {/* Mode selector */}
                 <View style={pm.tabs}>
                     {MODES.map((m, i) => {
                         const active = modeIdx === i;
@@ -177,33 +173,18 @@ function PomodoroTimer({ onAddLearning }: {
                     })}
                 </View>
 
-                {/* Ring clock */}
                 <View style={{ alignItems: 'center', justifyContent: 'center' }}>
                     <Svg width={RING_SIZE} height={RING_SIZE} viewBox={`0 0 ${RING_SIZE} ${RING_SIZE}`}>
-                        {/* Outer track */}
-                        <Circle
-                            cx={RING_SIZE / 2} cy={RING_SIZE / 2} r={RADIUS}
-                            stroke={mode.color + '18'} strokeWidth={12} fill="none"
-                        />
-                        {/* Glow ring (animated opacity) — static behind progress */}
-                        <Circle
-                            cx={RING_SIZE / 2} cy={RING_SIZE / 2} r={RADIUS}
-                            stroke={mode.color + '30'} strokeWidth={16} fill="none"
-                        />
-                        {/* Progress arc */}
+                        <Circle cx={RING_SIZE / 2} cy={RING_SIZE / 2} r={RADIUS} stroke={mode.color + '18'} strokeWidth={12} fill="none" />
+                        <Circle cx={RING_SIZE / 2} cy={RING_SIZE / 2} r={RADIUS} stroke={mode.color + '30'} strokeWidth={16} fill="none" />
                         <AnimatedCircle
                             cx={RING_SIZE / 2} cy={RING_SIZE / 2} r={RADIUS}
-                            stroke={mode.color}
-                            strokeWidth={12} fill="none"
-                            strokeLinecap="round"
-                            strokeDasharray={CIRCUM}
+                            stroke={mode.color} strokeWidth={12} fill="none"
+                            strokeLinecap="round" strokeDasharray={CIRCUM}
                             animatedProps={ringProps}
-                            rotation="-90"
-                            origin={`${RING_SIZE / 2}, ${RING_SIZE / 2}`}
+                            rotation="-90" origin={`${RING_SIZE / 2}, ${RING_SIZE / 2}`}
                         />
                     </Svg>
-
-                    {/* Centered content */}
                     <View style={pm.clockFace}>
                         <Animated.View style={glowStyle}>
                             <ModeIcon size={20} color={mode.color} strokeWidth={2} />
@@ -212,18 +193,14 @@ function PomodoroTimer({ onAddLearning }: {
                             {pad(mins)}:{pad(secs)}
                         </Text>
                         <Text style={pm.modeName}>{mode.label}</Text>
-                        {pct > 0 && (
-                            <Text style={[pm.pctText, { color: mode.color + '99' }]}>{pct}%</Text>
-                        )}
+                        {pct > 0 && <Text style={[pm.pctText, { color: mode.color + '99' }]}>{pct}%</Text>}
                     </View>
                 </View>
 
-                {/* Controls row */}
                 <View style={pm.controls}>
                     <TouchableOpacity style={pm.sideBtn} onPress={reset} activeOpacity={0.8}>
                         <RotateCcw size={17} color="#6b6880" strokeWidth={2} />
                     </TouchableOpacity>
-
                     <TouchableOpacity
                         style={[pm.playBtn, { backgroundColor: mode.color, shadowColor: mode.color }]}
                         onPress={() => setRunning(r => !r)}
@@ -234,18 +211,13 @@ function PomodoroTimer({ onAddLearning }: {
                             : <Play  size={26} color="#fff" strokeWidth={2.5} fill="#fff" />
                         }
                     </TouchableOpacity>
-
                     <TouchableOpacity style={pm.sideBtn} onPress={() => setModalOpen(true)} activeOpacity={0.8}>
                         <Plus size={17} color="#8b5cf6" strokeWidth={2.5} />
                     </TouchableOpacity>
                 </View>
 
                 <Text style={[pm.hint, { color: mode.color + '70' }]}>
-                    {seconds === total
-                        ? 'Pressione play para começar'
-                        : running
-                        ? `Faltam ${pad(mins)}:${pad(secs)}`
-                        : 'Pausado'}
+                    {seconds === total ? 'Pressione play para começar' : running ? `Faltam ${pad(mins)}:${pad(secs)}` : 'Pausado'}
                 </Text>
             </View>
 
@@ -286,11 +258,7 @@ function StreakCard({ streak }: { streak: number }) {
     const pulseStyle = useAnimatedStyle(() => ({ transform: [{ scale: pulse.value }] }));
     const pressStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
-    const label =
-        streak === 0 ? 'Nenhuma sequência ativa' :
-        streak < 7   ? 'Sequência iniciando' :
-        streak < 30  ? 'Ritmo consistente' :
-                       'Sequência lendária';
+    const label = streak === 0 ? 'Nenhuma sequência ativa' : streak < 7 ? 'Sequência iniciando' : streak < 30 ? 'Ritmo consistente' : 'Sequência lendária';
 
     return (
         <Animated.View entering={FadeInDown.duration(500).springify()} style={styles.section}>
@@ -307,9 +275,7 @@ function StreakCard({ streak }: { streak: number }) {
                     <View style={styles.streakInfo}>
                         <Text style={styles.streakLabel}>{label}</Text>
                         <Text style={styles.streakSub}>
-                            {streak === 0
-                                ? 'Registre um aprendizado para começar.'
-                                : 'Continue estudando hoje para manter a sequência.'}
+                            {streak === 0 ? 'Registre um aprendizado para começar.' : 'Continue estudando hoje para manter a sequência.'}
                         </Text>
                         <View style={styles.streakDots}>
                             {[...Array(7)].map((_, i) => (
@@ -323,54 +289,23 @@ function StreakCard({ streak }: { streak: number }) {
     );
 }
 
-// ─── Stats Card — 2x2 grid, sincronizado com dados reais do perfil ────────────
+// ─── Stats Card ───────────────────────────────────────────────────────────────
 function StatsCard({ streak, learnings, xp, studyArea, sessionHours }: {
-    streak: number;
-    learnings: Learning[];
-    xp: number;
-    studyArea: StudyArea;
-    sessionHours: number;
+    streak: number; learnings: Learning[]; xp: number; studyArea: StudyArea; sessionHours: number;
 }) {
     const cfg = AREA_CONFIG[studyArea];
-
-    const todayCount = learnings.filter(l =>
-        new Date(l.date).toDateString() === new Date().toDateString()
-    ).length;
-
-    // Nível derivado do XP (alinhado com SuggestionsScreen)
-    const level =
-        xp >= 1500 ? { label: 'DevOps', color: '#FFD700', Icon: TrendingUp } :
-        xp >= 800  ? { label: 'Sênior', color: '#8b5cf6', Icon: TrendingUp } :
-        xp >= 300  ? { label: 'Pleno',  color: '#06b6d4', Icon: Zap        } :
-                     { label: 'Júnior', color: '#10b981', Icon: Target     };
-
+    const todayCount = learnings.filter(l => new Date(l.date).toDateString() === new Date().toDateString()).length;
+    const level = xp >= 1500 ? { label: 'DevOps', color: '#FFD700', Icon: TrendingUp } :
+                  xp >= 800  ? { label: 'Sênior', color: '#8b5cf6', Icon: TrendingUp } :
+                  xp >= 300  ? { label: 'Pleno',  color: '#06b6d4', Icon: Zap        } :
+                               { label: 'Júnior', color: '#10b981', Icon: Target     };
     const LvlIcon = level.Icon;
 
     const cells = [
-        {
-            Icon: Flame,    color: '#8b5cf6',
-            value: `${streak}`,  unit: 'dias',
-            label: 'Sequência',
-            sub: streak === 0 ? 'Sem sequência' : streak >= 7 ? 'Consistente' : 'Em progresso',
-        },
-        {
-            Icon: BookOpen, color: '#06b6d4',
-            value: `${todayCount}`, unit: '',
-            label: 'Hoje',
-            sub: todayCount === 0 ? 'Nenhum registro' : `${todayCount} registro${todayCount !== 1 ? 's' : ''}`,
-        },
-        {
-            Icon: Star,     color: '#f59e0b',
-            value: `${xp}`, unit: 'xp',
-            label: 'Experiência',
-            sub: level.label,
-        },
-        {
-            Icon: cfg.Icon, color: cfg.color,
-            value: `${sessionHours}`, unit: 'h',
-            label: 'Sessão',
-            sub: cfg.label,
-        },
+        { Icon: Flame,    color: '#8b5cf6', value: `${streak}`,        unit: 'dias', label: 'Sequência', sub: streak === 0 ? 'Sem sequência' : streak >= 7 ? 'Consistente' : 'Em progresso' },
+        { Icon: BookOpen, color: '#06b6d4', value: `${todayCount}`,    unit: '',     label: 'Hoje',      sub: todayCount === 0 ? 'Nenhum registro' : `${todayCount} registro${todayCount !== 1 ? 's' : ''}` },
+        { Icon: Star,     color: '#f59e0b', value: `${xp}`,            unit: 'xp',   label: 'Experiência', sub: level.label },
+        { Icon: cfg.Icon, color: cfg.color, value: `${sessionHours}`,  unit: 'h',    label: 'Sessão',    sub: cfg.label },
     ];
 
     return (
@@ -383,16 +318,11 @@ function StatsCard({ streak, learnings, xp, studyArea, sessionHours }: {
                     <Text style={[sc.lvlText, { color: level.color }]}>{level.label}</Text>
                 </View>
             </View>
-
             <View style={sc.grid}>
                 {cells.map((c, i) => {
                     const CIcon = c.Icon;
                     return (
-                        <Animated.View
-                            key={i}
-                            entering={FadeInDown.delay(50 + i * 35).duration(400).springify()}
-                            style={[sc.cell, { borderColor: c.color + '28' }]}
-                        >
+                        <Animated.View key={i} entering={FadeInDown.delay(50 + i * 35).duration(400).springify()} style={[sc.cell, { borderColor: c.color + '28' }]}>
                             <View style={[sc.iconBox, { backgroundColor: c.color + '15' }]}>
                                 <CIcon size={15} color={c.color} strokeWidth={2} />
                             </View>
@@ -441,11 +371,7 @@ function LearningRow({ item, onDelete }: { item: Learning; onDelete: () => void 
                     <Text style={styles.learningDate}>{formatAgo(item.date)}</Text>
                 </View>
             </View>
-            <TouchableOpacity
-                style={styles.deleteBtn}
-                onPress={handleDelete}
-                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            >
+            <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
                 <Trash2 size={14} color="#ef444455" strokeWidth={2} />
             </TouchableOpacity>
         </Animated.View>
@@ -454,19 +380,14 @@ function LearningRow({ item, onDelete }: { item: Learning; onDelete: () => void 
 
 // ─── Learnings Card ───────────────────────────────────────────────────────────
 function LearningsCard({ learnings, onAdd, onDelete }: {
-    learnings: Learning[];
-    onAdd: (text: string, meta?: any) => void;
-    onDelete: (id: string) => void;
+    learnings: Learning[]; onAdd: (text: string, meta?: any) => void; onDelete: (id: string) => void;
 }) {
     const [modalVisible, setModalVisible] = useState(false);
     const [expanded,     setExpanded]     = useState(false);
     const shown = expanded ? learnings : learnings.slice(0, 4);
 
     return (
-        <Animated.View
-            entering={FadeInDown.delay(160).duration(500).springify()}
-            style={[styles.section, { marginBottom: 48 }]}
-        >
+        <Animated.View entering={FadeInDown.delay(160).duration(500).springify()} style={[styles.section, { marginBottom: 48 }]}>
             <View style={styles.sectionHeader}>
                 <BookOpen size={16} color="#8b5cf6" strokeWidth={2} />
                 <Text style={styles.sectionTitle}>Registros</Text>
@@ -522,6 +443,16 @@ export default function HomeScreen() {
     const firstName = user?.displayName?.split(' ')[0] ?? 'Dev';
     const keys      = email ? getStorageKeys(email) : null;
 
+    // ── Paralaxe ──────────────────────────────────────────────────────────────
+    const {
+        scrollHandler,
+        titleStyle,
+        subtitleStyle,
+        collapsedTitleStyle,
+        headerContainerStyle,
+        headerBgStyle,
+    } = useParallaxScroll();
+
     const loadData = useCallback(async () => {
         if (!keys) return;
         const [streakData, learnRaw, statsRaw, areaRaw, sessionHours, xpRaw] = await Promise.all([
@@ -554,11 +485,7 @@ export default function HomeScreen() {
         setStats(newStats);
         await AsyncStorage.setItem(keys.stats, JSON.stringify(newStats));
         if (meta?.area && keys) {
-            const areaMap: Record<string, StudyArea> = {
-                frontend: 'frontend', backend: 'backend',
-                mobile: 'frontend',   devops: 'backend',
-                fullstack: 'fullstack', security: 'backend',
-            };
+            const areaMap: Record<string, StudyArea> = { frontend: 'frontend', backend: 'backend', mobile: 'frontend', devops: 'backend', fullstack: 'fullstack', security: 'backend' };
             const mapped = areaMap[meta.area] ?? 'fullstack';
             setStudyArea(mapped);
             await AsyncStorage.setItem(keys.area, mapped);
@@ -581,37 +508,48 @@ export default function HomeScreen() {
 
     return (
         <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-            <Animated.View entering={FadeInUp.duration(400)} style={styles.header}>
-                <View>
-                    <Text style={styles.greeting}>Olá, {firstName}</Text>
-                    <Text style={styles.date}>{formatHeaderDate()}</Text>
-                </View>
-                <View style={styles.headerXp}>
-                    <Star size={12} color="#f59e0b" strokeWidth={2} />
-                    <Text style={styles.headerXpText}>{xp} XP</Text>
-                </View>
+
+            {/* ── Header colapsável com paralaxe ── */}
+            <Animated.View style={[styles.headerContainer, headerContainerStyle]}>
+                {/* Fundo sólido que aparece ao rolar */}
+                <Animated.View style={[styles.headerBg, headerBgStyle]} />
+
+                {/* Título expandido */}
+                <Animated.View style={[styles.headerExpanded, titleStyle]}>
+                    <View>
+                        <Text style={styles.greeting}>Olá, {firstName}</Text>
+                        <Animated.Text style={[styles.date, subtitleStyle]}>
+                            {formatHeaderDate()}
+                        </Animated.Text>
+                    </View>
+                    <View style={styles.headerXp}>
+                        <Star size={12} color="#f59e0b" strokeWidth={2} />
+                        <Text style={styles.headerXpText}>{xp} XP</Text>
+                    </View>
+                </Animated.View>
+
+                {/* Mini-título colapsado */}
+                <Animated.View style={[styles.headerCollapsed, collapsedTitleStyle]}>
+                    <Text style={styles.headerCollapsedText}>Home</Text>
+                    <View style={styles.headerXpSmall}>
+                        <Star size={10} color="#f59e0b" strokeWidth={2} />
+                        <Text style={styles.headerXpSmallText}>{xp} XP</Text>
+                    </View>
+                </Animated.View>
             </Animated.View>
 
-            <ScrollView
+            {/* ── Scroll com handler de paralaxe ── */}
+            <Animated.ScrollView
+                onScroll={scrollHandler}
+                scrollEventThrottle={16}
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.content}
-                scrollEventThrottle={16}
             >
                 <StreakCard streak={streak} />
-                <StatsCard
-                    streak={streak}
-                    learnings={learnings}
-                    xp={xp}
-                    studyArea={studyArea}
-                    sessionHours={stats.totalHours}
-                />
+                <StatsCard streak={streak} learnings={learnings} xp={xp} studyArea={studyArea} sessionHours={stats.totalHours} />
                 <PomodoroTimer onAddLearning={handleAddLearning} />
-                <LearningsCard
-                    learnings={learnings}
-                    onAdd={handleAddLearning}
-                    onDelete={handleDeleteLearning}
-                />
-            </ScrollView>
+                <LearningsCard learnings={learnings} onAdd={handleAddLearning} onDelete={handleDeleteLearning} />
+            </Animated.ScrollView>
         </SafeAreaView>
     );
 }
@@ -619,17 +557,26 @@ export default function HomeScreen() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
     container:    { flex: 1, backgroundColor: '#0d0d10' },
-    header:       { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+
+    // Header paralaxe
+    headerContainer:    { overflow: 'hidden', justifyContent: 'center', paddingHorizontal: 20 },
+    headerBg:           { ...StyleSheet.absoluteFillObject, backgroundColor: '#0d0d10' },
+    headerExpanded:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', position: 'absolute', left: 20, right: 20, bottom: 10 },
+    headerCollapsed:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', position: 'absolute', left: 20, right: 20, bottom: 14 },
+    headerCollapsedText:{ color: '#fff', fontSize: 17, fontWeight: '800' },
+    headerXpSmall:      { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#f59e0b18', borderWidth: 1, borderColor: '#f59e0b35', borderRadius: 16, paddingHorizontal: 8, paddingVertical: 4 },
+    headerXpSmallText:  { color: '#f59e0b', fontSize: 11, fontWeight: '700' },
+
     greeting:     { color: '#fff', fontSize: 22, fontWeight: '800', letterSpacing: -0.4 },
     date:         { color: '#6b6880', fontSize: 12, marginTop: 2, textTransform: 'capitalize' },
     headerXp:     { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#f59e0b18', borderWidth: 1, borderColor: '#f59e0b35', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5 },
     headerXpText: { color: '#f59e0b', fontSize: 12, fontWeight: '700' },
+
     content:      { paddingHorizontal: 16, paddingBottom: 40, paddingTop: 8 },
     section:      { marginBottom: 20 },
     sectionHeader:{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
     sectionTitle: { color: '#fff', fontSize: 15, fontWeight: '700', flex: 1 },
 
-    // Streak
     streakCard:   { backgroundColor: '#16151d', borderRadius: 20, padding: 20, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#2a2040' },
     streakCircle: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#8b5cf6', justifyContent: 'center', alignItems: 'center', marginRight: 18, shadowColor: '#8b5cf6', shadowOpacity: 0.5, shadowRadius: 14, elevation: 8 },
     streakNumber: { fontSize: 26, fontWeight: '900', color: '#fff', lineHeight: 28 },
@@ -641,7 +588,6 @@ const styles = StyleSheet.create({
     dot:          { width: 8, height: 8, borderRadius: 4, backgroundColor: '#2a2040' },
     dotActive:    { backgroundColor: '#8b5cf6' },
 
-    // Learnings
     addIconBtn:    { marginLeft: 'auto', padding: 4 },
     learningRow:   { flexDirection: 'row', backgroundColor: '#16151d', borderRadius: 14, padding: 14, marginBottom: 8, alignItems: 'flex-start', borderWidth: 1, borderColor: '#2a2040' },
     learningDot:   { width: 6, height: 6, borderRadius: 3, backgroundColor: '#8b5cf6', marginTop: 6, marginRight: 10, flexShrink: 0 },

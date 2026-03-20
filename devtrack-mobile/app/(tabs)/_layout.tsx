@@ -1,12 +1,20 @@
-// app/(tabs)/_layout.tsx
-import { Tabs } from 'expo-router';
+// app/(tabs)/_layout.tsx  — com transição slide + fade entre abas
+import { Tabs, usePathname } from 'expo-router';
 import { View, Text, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
-    useSharedValue, useAnimatedStyle,
-    withSpring, interpolate,
+    useSharedValue,
+    useAnimatedStyle,
+    withSpring,
+    withTiming,
+    interpolate,
+    runOnJS,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
+import { useEffect, useRef, useState } from 'react';
+
+// ─── Ordem das abas para calcular direção do slide ───────────────────────────
+const TAB_ORDER = ['index', 'Suggestions', 'Exercises', 'profile'];
 
 // ─── Custom tab button ────────────────────────────────────────────────────────
 function TabButton({
@@ -32,6 +40,7 @@ function TabButton({
     const containerStyle = useAnimatedStyle(() => ({
         transform: [{ scale: scale.value }],
     }));
+
     const dotStyle = useAnimatedStyle(() => ({
         transform: [{ scale: dotScale.value }],
         opacity: interpolate(dotScale.value, [0, 1], [0, 1]),
@@ -59,13 +68,51 @@ function TabButton({
     );
 }
 
+// ─── Wrapper de tela com animação slide+fade ─────────────────────────────────
+// Cada tela é envolvida nesse componente ao ser montada
+export function AnimatedScreenWrapper({
+    children,
+    routeName,
+}: {
+    children: React.ReactNode;
+    routeName: string;
+}) {
+    const translateX = useSharedValue(40);
+    const opacity    = useSharedValue(0);
+
+    useEffect(() => {
+        // Slide in + fade in ao montar
+        translateX.value = withSpring(0, {
+            damping:   22,
+            stiffness: 180,
+            mass:      0.8,
+        });
+        opacity.value = withTiming(1, { duration: 220 });
+    }, []);
+
+    const animStyle = useAnimatedStyle(() => ({
+        flex: 1,
+        transform: [{ translateX: translateX.value }],
+        opacity: opacity.value,
+    }));
+
+    return (
+        <Animated.View style={animStyle}>
+            {children}
+        </Animated.View>
+    );
+}
+
+// ─── Layout principal ─────────────────────────────────────────────────────────
 export default function TabsLayout() {
-    const insets = useSafeAreaInsets();
+    const insets  = useSafeAreaInsets();
 
     return (
         <Tabs
             screenOptions={{
                 headerShown: false,
+                // Animação nativa ao trocar abas
+                animation: 'shift',
                 tabBarStyle: {
                     position: 'absolute',
                     bottom: 0,
@@ -85,7 +132,6 @@ export default function TabsLayout() {
                 tabBarShowLabel: false,
             }}
         >
-            {/* ── As 3 tabs reais ── */}
             <Tabs.Screen
                 name="index"
                 options={{
@@ -99,6 +145,14 @@ export default function TabsLayout() {
                 options={{
                     tabBarIcon: ({ focused }) => (
                         <TabButton focused={focused} icon="bulb" label="Sugestões" />
+                    ),
+                }}
+            />
+            <Tabs.Screen
+                name="Exercises"
+                options={{
+                    tabBarIcon: ({ focused }) => (
+                        <TabButton focused={focused} icon="code-slash" label="Exercícios" />
                     ),
                 }}
             />

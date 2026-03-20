@@ -1,29 +1,25 @@
 // src/screens/LoginScreen.tsx
+// Tela única de login/cadastro — alterna entre os dois modos com as tabs no topo.
+// Optei por não fazer telas separadas porque o formulário é quase idêntico,
+// só o campo de nome e o texto do botão mudam.
+
 import React, { useState } from 'react';
 import {
-    View,
-    Text,
-    StyleSheet,
-    TouchableOpacity,
-    ActivityIndicator,
-    TextInput,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    Dimensions,
+    View, Text, StyleSheet, TouchableOpacity,
+    ActivityIndicator, TextInput, KeyboardAvoidingView,
+    Platform, ScrollView, Dimensions,
 } from 'react-native';
 import Animated, {
-    FadeInDown,
-    FadeInUp,
-    useSharedValue,
-    useAnimatedStyle,
-    withSpring,
+    FadeInDown, FadeInUp,
+    useSharedValue, useAnimatedStyle, withSpring,
 } from 'react-native-reanimated';
 import { signInWithEmail, signUpWithEmail } from '../services/authService';
 
 const { height } = Dimensions.get('window');
 type Mode = 'login' | 'register';
 
+// Traduz os códigos de erro do Firebase pra mensagens legíveis em português.
+// Muito melhor do que mostrar "auth/wrong-password" pro usuário.
 function getFirebaseError(code: string): string {
     switch (code) {
         case 'auth/email-already-in-use':   return 'Este e-mail já está cadastrado.';
@@ -38,25 +34,27 @@ function getFirebaseError(code: string): string {
 }
 
 export default function LoginScreen() {
-    const [mode, setMode] = useState<Mode>('login');
-    const [name, setName] = useState('');
-    const [email, setEmail] = useState('');
+    const [mode, setMode]         = useState<Mode>('login');
+    const [name, setName]         = useState('');
+    const [email, setEmail]       = useState('');
     const [password, setPassword] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
-    const scale = useSharedValue(1);
+    const [loading, setLoading]   = useState(false);
+    const [error, setError]       = useState('');
 
-    const btnStyle = useAnimatedStyle(() => ({
-        transform: [{ scale: scale.value }],
-    }));
+    // feedback visual no botão ao pressionar — só um pequeno scale
+    const scale    = useSharedValue(1);
+    const btnStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
     const handleSubmit = async () => {
         setError('');
+
+        // validações básicas antes de fazer a request
         if (!email.trim() || !password.trim()) { setError('Preencha todos os campos.'); return; }
         if (mode === 'register' && !name.trim()) { setError('Digite seu nome.'); return; }
         if (password.length < 6) { setError('A senha deve ter pelo menos 6 caracteres.'); return; }
 
         setLoading(true);
+        // animação do botão enquanto carrega
         scale.value = withSpring(0.97, {}, () => { scale.value = withSpring(1); });
 
         try {
@@ -65,6 +63,7 @@ export default function LoginScreen() {
             } else {
                 await signUpWithEmail(name.trim(), email.trim(), password);
             }
+            // navegação pra home acontece automaticamente via AuthContext + _layout
         } catch (err: any) {
             setError(getFirebaseError(err.code));
         } finally {
@@ -72,6 +71,7 @@ export default function LoginScreen() {
         }
     };
 
+    // ao trocar de modo, limpa tudo — evita dados de uma sessão aparecerem na outra
     const toggleMode = () => {
         setMode(m => m === 'login' ? 'register' : 'login');
         setError('');
@@ -84,9 +84,10 @@ export default function LoginScreen() {
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
             <ScrollView
                 contentContainerStyle={styles.container}
-                keyboardShouldPersistTaps="handled"
+                keyboardShouldPersistTaps="handled"  // evita que o teclado feche ao tocar no botão
                 showsVerticalScrollIndicator={false}
             >
+                {/* Logo */}
                 <Animated.View entering={FadeInDown.delay(100).duration(700).springify()} style={styles.logoArea}>
                     <View style={styles.logoBox}>
                         <View style={styles.terminalIcon}>
@@ -100,7 +101,9 @@ export default function LoginScreen() {
                     <Text style={styles.logoTagline}>Sua evolução, visível.</Text>
                 </Animated.View>
 
+                {/* Formulário */}
                 <Animated.View entering={FadeInDown.delay(350).duration(600)} style={styles.form}>
+                    {/* tabs Entrar / Cadastrar */}
                     <View style={styles.tabs}>
                         <TouchableOpacity
                             style={[styles.tab, mode === 'login' && styles.tabActive]}
@@ -116,6 +119,7 @@ export default function LoginScreen() {
                         </TouchableOpacity>
                     </View>
 
+                    {/* campo de nome só aparece no cadastro */}
                     {mode === 'register' && (
                         <TextInput
                             style={styles.input}
@@ -163,6 +167,7 @@ export default function LoginScreen() {
                     </Animated.View>
                 </Animated.View>
 
+                {/* Footer com link pra trocar de modo e termos */}
                 <Animated.View entering={FadeInUp.delay(500).duration(600)} style={styles.footer}>
                     <Text style={styles.footerText}>
                         {mode === 'login' ? 'Não tem conta? ' : 'Já tem conta? '}
@@ -184,7 +189,7 @@ const styles = StyleSheet.create({
         flexGrow: 1,
         backgroundColor: '#0d0d10',
         paddingHorizontal: 24,
-        paddingTop: height * 0.1,
+        paddingTop: height * 0.1,  // 10% da altura pra centralizar visualmente
         paddingBottom: 40,
         justifyContent: 'space-between',
     },

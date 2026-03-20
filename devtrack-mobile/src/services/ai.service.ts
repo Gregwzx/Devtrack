@@ -1,4 +1,8 @@
 // src/services/ai.service.ts
+// Integração com o Gemini 1.5 Flash. A API key vem do app.json via expo-constants
+// porque não dá pra colocar no .env de forma segura em apps mobile — a key
+// acaba no bundle de qualquer forma, mas pelo menos não fica exposta no código.
+
 import Constants from 'expo-constants';
 
 const GEMINI_API_KEY = (Constants.expoConfig?.extra?.geminiApiKey as string) ?? '';
@@ -13,13 +17,15 @@ export interface AISuggestionInput {
 }
 
 export interface AIResult {
-    suggestion: string;       // Análise personalizada (2-3 frases)
-    tip: string;              // Dica rápida de produtividade
-    nextTopics: string[];     // 3 tópicos específicos para estudar hoje
+    suggestion: string;       // análise personalizada dos aprendizados reais (2-3 frases)
+    tip: string;              // dica técnica concreta pra aplicar hoje
+    nextTopics: string[];     // 3 tópicos específicos pra estudar — sem verbos, só o tema
     detectedArea: StudyArea;
-    mood: 'motivating' | 'challenging' | 'reflective'; // Tom da mensagem
+    mood: 'motivating' | 'challenging' | 'reflective';
 }
 
+// Função base de chamada à API — lida com a request e limpa o markdown que
+// o Gemini às vezes coloca em volta do JSON mesmo quando pedimos pra não colocar
 async function callGemini(prompt: string): Promise<string> {
     const response = await fetch(GEMINI_URL, {
         method: 'POST',
@@ -27,7 +33,7 @@ async function callGemini(prompt: string): Promise<string> {
         body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: {
-                temperature: 0.85,
+                temperature: 0.85,   // um pouco de criatividade, mas sem delirar
                 maxOutputTokens: 500,
                 topP: 0.9,
             },
@@ -36,14 +42,19 @@ async function callGemini(prompt: string): Promise<string> {
     if (!response.ok) throw new Error(`Gemini error: ${response.status}`);
     const data = await response.json();
     const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+    // o Gemini às vezes envolve o JSON em ```json ... ``` mesmo com instrução contrária
     return raw.replace(/```json|```/g, '').trim();
 }
 
+// O prompt é a parte mais importante de tudo isso.
+// Quanto mais específico e contextualizado, mais útil a resposta.
+// Testei várias versões — essa é a que gerou resultados menos genéricos.
 function buildPrompt(input: AISuggestionInput): string {
     const { streak, learnings, firstName } = input;
 
+    // monta o histórico de aprendizados com contexto de quando foi
     const recentLearnings = learnings
-        .slice(0, 8)
+        .slice(0, 8)  // últimos 8 são suficientes pra ter contexto sem estourar o contexto do modelo
         .map((l, i) => {
             const daysAgo = Math.floor((Date.now() - new Date(l.date).getTime()) / 86400000);
             const when = daysAgo === 0 ? 'hoje' : daysAgo === 1 ? 'ontem' : `${daysAgo} dias atrás`;
@@ -51,6 +62,7 @@ function buildPrompt(input: AISuggestionInput): string {
         })
         .join('\n');
 
+    // contexto do streak ajuda o modelo a calibrar o tom (motivar vs desafiar)
     const streakContext =
         streak === 0 ? 'nunca estudou ou perdeu a sequência recentemente' :
         streak < 3   ? 'está começando uma nova sequência, precisa de motivação' :
@@ -85,15 +97,17 @@ Responda APENAS com JSON válido, sem markdown, sem explicações:
 }
 
 export async function getAIResult(input: AISuggestionInput): Promise<AIResult> {
+    // se não tiver API key configurada, vai direto pro fallback — útil em dev local
     if (!GEMINI_API_KEY) return fallback(input);
 
     try {
         const raw    = await callGemini(buildPrompt(input));
         const parsed = JSON.parse(raw);
 
+        // valida se a área veio num valor esperado — o modelo às vezes inventa
         const area = (['frontend', 'backend', 'fullstack'] as StudyArea[]).includes(parsed.detectedArea)
             ? (parsed.detectedArea as StudyArea)
-            : detectAreaFromText(input.learnings);
+            : detectAreaFromText(input.learnings);  // fallback heurístico
 
         const mood = (['motivating', 'challenging', 'reflective'] as const).includes(parsed.mood)
             ? parsed.mood
@@ -107,10 +121,13 @@ export async function getAIResult(input: AISuggestionInput): Promise<AIResult> {
             mood,
         };
     } catch {
+        // qualquer erro (rede, JSON inválido, etc.) cai aqui sem travar o app
         return fallback(input);
     }
 }
 
+// Detecta a área pelo texto dos aprendizados — regex simples mas funciona
+// bem pra 90% dos casos. Fullstack é o default quando não dá pra decidir.
 function detectAreaFromText(learnings: { text: string }[]): StudyArea {
     const txt = learnings.map(l => l.text.toLowerCase()).join(' ');
     const isFront = /react|css|html|ui|ux|component|vue|angular|tailwind|figma|design|mobile|next\.?js|svelte/.test(txt);
@@ -118,6 +135,8 @@ function detectAreaFromText(learnings: { text: string }[]): StudyArea {
     return isFront && !isBack ? 'frontend' : isBack && !isFront ? 'backend' : 'fullstack';
 }
 
+// Respostas pré-definidas pra quando a API não está disponível.
+// Tentei deixar menos genéricas possível mesmo sendo estáticas.
 function fallback(input: AISuggestionInput): AIResult {
     const area = detectAreaFromText(input.learnings);
     const hasLearnings = input.learnings.length > 0;

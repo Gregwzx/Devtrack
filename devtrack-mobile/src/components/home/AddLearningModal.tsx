@@ -1,4 +1,8 @@
 // src/components/home/AddLearningModal.tsx
+// Modal de 3 etapas pra registrar um aprendizado de forma estruturada.
+// A ideia é que o usuário não precise pensar no que escrever —
+// área → stack → tipo já gera um texto pronto. Ele só edita se quiser.
+
 import React, { useState, useCallback, useEffect } from 'react';
 import {
     Modal, View, Text, StyleSheet, TouchableOpacity,
@@ -18,12 +22,13 @@ import {
 
 const { width: SW } = Dimensions.get('window');
 
-// ─── Data ─────────────────────────────────────────────────────────────────────
-
-type Area = { id: string; label: string; emoji: string; color: string; Icon: any };
-type Stack = { id: string; label: string; area: string[] };
+// ─── Tipos internos do modal ──────────────────────────────────────────────────
+type Area         = { id: string; label: string; emoji: string; color: string; Icon: any };
+type Stack        = { id: string; label: string; area: string[] };
 type LearningType = { id: string; label: string; emoji: string; template: string; Icon: any };
 
+// 6 áreas — mais amplo que as 3 do AREA_CONFIG porque aqui é contexto de registro,
+// não de perfil. O mapeamento pra StudyArea acontece na HomeScreen.
 const AREAS: Area[] = [
     { id: 'frontend',  label: 'Frontend',  emoji: '🎨', color: '#06b6d4', Icon: Code2       },
     { id: 'backend',   label: 'Backend',   emoji: '⚙️', color: '#10b981', Icon: Server      },
@@ -33,6 +38,7 @@ const AREAS: Area[] = [
     { id: 'security',  label: 'Security',  emoji: '🔐', color: '#ef4444', Icon: Shield      },
 ];
 
+// Cada stack tem um array de áreas compatíveis pra filtrar no passo 2
 const STACKS: Stack[] = [
     // Frontend
     { id: 'React',          label: 'React',          area: ['frontend', 'fullstack'] },
@@ -67,6 +73,7 @@ const STACKS: Stack[] = [
     { id: 'OAuth',          label: 'OAuth',          area: ['security', 'backend'] },
 ];
 
+// Templates com {stack} como placeholder — substituído no buildText
 const LEARNING_TYPES: LearningType[] = [
     { id: 'concept',  label: 'Conceito',       emoji: '💡', template: 'Aprendi o conceito de {stack}',       Icon: Lightbulb },
     { id: 'bug',      label: 'Bug resolvido',  emoji: '🐛', template: 'Resolvi um bug em {stack}',           Icon: Bug       },
@@ -76,7 +83,9 @@ const LEARNING_TYPES: LearningType[] = [
     { id: 'review',   label: 'Revisão',        emoji: '👁',  template: 'Revisei conceitos de {stack}',        Icon: Eye       },
 ];
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Helper ───────────────────────────────────────────────────────────────────
+// Monta o texto legível a partir do tipo + stacks selecionados.
+// "React, TypeScript e Next.js" > "React, TypeScript, Next.js" — a vírgula antes do "e" some.
 function buildText(type: LearningType, stacks: string[]): string {
     const stackLabel = stacks.length === 0 ? 'programação'
         : stacks.length === 1 ? stacks[0]
@@ -84,7 +93,8 @@ function buildText(type: LearningType, stacks: string[]): string {
     return type.template.replace('{stack}', stackLabel);
 }
 
-// ─── Step indicator ───────────────────────────────────────────────────────────
+// ─── Indicador de progresso (bolinhas) ───────────────────────────────────────
+// A bolinha ativa estica pra virar uma pílula — detalhe visual pequeno mas bonito
 function StepDots({ step, total }: { step: number; total: number }) {
     return (
         <View style={s.stepDots}>
@@ -93,8 +103,8 @@ function StepDots({ step, total }: { step: number; total: number }) {
                     key={i}
                     style={[
                         s.stepDot,
-                        i < step && s.stepDotDone,
-                        i === step && s.stepDotActive,
+                        i < step  && s.stepDotDone,    // passos anteriores: contorno roxo
+                        i === step && s.stepDotActive,  // passo atual: pílula cheia
                     ]}
                 />
             ))}
@@ -102,7 +112,8 @@ function StepDots({ step, total }: { step: number; total: number }) {
     );
 }
 
-// ─── Step 1 — Choose Area ────────────────────────────────────────────────────
+// ─── Passo 1 — Área ───────────────────────────────────────────────────────────
+// Toque em uma área avança direto pro passo 2, sem botão de confirmar
 function StepArea({ onSelect }: { onSelect: (a: Area) => void }) {
     return (
         <Animated.View entering={SlideInRight.duration(280)} exiting={SlideOutLeft.duration(200)} style={s.stepWrap}>
@@ -110,6 +121,7 @@ function StepArea({ onSelect }: { onSelect: (a: Area) => void }) {
             <Text style={s.stepSub}>Selecione a área do que você aprendeu</Text>
             <View style={s.areaGrid}>
                 {AREAS.map((area, i) => (
+                    // delay escalonado nos cards — entrada em cascata
                     <Animated.View key={area.id} entering={FadeInDown.delay(i * 45).duration(300).springify()}>
                         <TouchableOpacity
                             style={[s.areaCard, { borderColor: area.color + '40' }]}
@@ -129,7 +141,9 @@ function StepArea({ onSelect }: { onSelect: (a: Area) => void }) {
     );
 }
 
-// ─── Step 2 — Choose Stacks ──────────────────────────────────────────────────
+// ─── Passo 2 — Stacks ─────────────────────────────────────────────────────────
+// Seleção múltipla — o botão muda o label pra mostrar quantos foram selecionados.
+// "Pular" disponível pra quem não quer categorizar.
 function StepStack({
     area, selected, onToggle, onNext, onBack,
 }: {
@@ -156,6 +170,7 @@ function StepStack({
                                 onPress={() => onToggle(stack.id)}
                                 activeOpacity={0.7}
                             >
+                                {/* checkbox customizado — mais bonito que o nativo */}
                                 <View style={[s.stackCheck, active && { backgroundColor: area.color, borderColor: area.color }]}>
                                     {active && <Check size={11} color="#fff" strokeWidth={3} />}
                                 </View>
@@ -187,7 +202,9 @@ function StepStack({
     );
 }
 
-// ─── Step 3 — Choose Type + optional text ────────────────────────────────────
+// ─── Passo 3 — Tipo + texto ────────────────────────────────────────────────────
+// Gera o texto automaticamente ao selecionar o tipo.
+// O botão "Editar" troca o preview por um TextInput — experiência fluida.
 function StepType({
     area, stacks, onSave, onBack,
 }: {
@@ -201,17 +218,18 @@ function StepType({
     const [editingText, setEditingText]   = useState(false);
 
     const generatedText = selectedType ? buildText(selectedType, stacks) : '';
+    // usa o texto customizado se o usuário editou, senão usa o gerado
     const finalText     = editingText ? customText : generatedText;
 
     const handleTypeSelect = (t: LearningType) => {
         setSelectedType(t);
-        setCustomText(buildText(t, stacks));
+        setCustomText(buildText(t, stacks));  // pré-preenche o campo de edição
         setEditingText(false);
     };
 
     const handleSave = () => {
         const text = finalText.trim();
-        if (!text) return;
+        if (!text) return;  // não salva vazio
         onSave(text, {
             area:   area.id,
             stacks,
@@ -244,7 +262,7 @@ function StepType({
                 })}
             </View>
 
-            {/* Preview / editable text */}
+            {/* Preview do texto gerado — aparece com animação depois de selecionar o tipo */}
             {selectedType && (
                 <Animated.View entering={FadeInDown.duration(300)} style={s.previewWrap}>
                     <View style={s.previewHeader}>
@@ -254,6 +272,7 @@ function StepType({
                         </TouchableOpacity>
                     </View>
                     {editingText ? (
+                        // TextInput aparece com autoFocus quando usuário clica em "Editar"
                         <TextInput
                             style={[s.previewInput, { borderColor: area.color + '50' }]}
                             value={customText}
@@ -263,6 +282,7 @@ function StepType({
                             placeholderTextColor="#555"
                         />
                     ) : (
+                        // toque no texto também ativa a edição — mais intuitivo
                         <TouchableOpacity onPress={() => setEditingText(true)}>
                             <Text style={s.previewText}>{generatedText}</Text>
                         </TouchableOpacity>
@@ -275,6 +295,7 @@ function StepType({
                     <ChevronLeft size={16} color="#6b6880" strokeWidth={2} />
                     <Text style={s.backBtnText}>Voltar</Text>
                 </TouchableOpacity>
+                {/* botão fica cinza até selecionar um tipo */}
                 <TouchableOpacity
                     style={[s.nextBtn, { backgroundColor: selectedType ? area.color : '#2a2040' }]}
                     onPress={handleSave}
@@ -288,7 +309,7 @@ function StepType({
     );
 }
 
-// ─── Main Modal ───────────────────────────────────────────────────────────────
+// ─── Modal principal ──────────────────────────────────────────────────────────
 interface AddLearningModalProps {
     visible: boolean;
     onClose: () => void;
@@ -300,7 +321,7 @@ export default function AddLearningModal({ visible, onClose, onSave }: AddLearni
     const [selectedArea,   setSelectedArea]   = useState<Area | null>(null);
     const [selectedStacks, setSelectedStacks] = useState<string[]>([]);
 
-    // Reset on open
+    // reseta tudo ao abrir — evita que estado de uma sessão anterior apareça
     useEffect(() => {
         if (visible) {
             setStep(0);
@@ -311,7 +332,7 @@ export default function AddLearningModal({ visible, onClose, onSave }: AddLearni
 
     const handleAreaSelect = (area: Area) => {
         setSelectedArea(area);
-        setSelectedStacks([]);
+        setSelectedStacks([]);  // limpa stacks ao trocar de área
         setStep(1);
     };
 
@@ -326,17 +347,15 @@ export default function AddLearningModal({ visible, onClose, onSave }: AddLearni
         onClose();
     };
 
-    const accentColor = selectedArea?.color ?? '#8b5cf6';
-
     return (
         <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+            {/* Pressable no overlay fecha o modal ao tocar fora */}
             <Pressable style={s.overlay} onPress={onClose}>
+                {/* Pressable no sheet impede que o toque no conteúdo feche o modal */}
                 <Pressable style={s.sheet} onPress={() => {}}>
 
-                    {/* Handle bar */}
                     <View style={s.handle} />
 
-                    {/* Header */}
                     <View style={s.header}>
                         <View>
                             <Text style={s.headerTitle}>Novo registro</Text>
@@ -347,7 +366,7 @@ export default function AddLearningModal({ visible, onClose, onSave }: AddLearni
                         </TouchableOpacity>
                     </View>
 
-                    {/* Area chip (shows after step 0) */}
+                    {/* Breadcrumb de contexto — mostra área e stacks selecionados */}
                     {selectedArea && (
                         <Animated.View entering={FadeInDown.duration(250)} style={s.breadcrumb}>
                             <View style={[s.breadcrumbChip, { borderColor: selectedArea.color + '40', backgroundColor: selectedArea.color + '12' }]}>
@@ -357,6 +376,7 @@ export default function AddLearningModal({ visible, onClose, onSave }: AddLearni
                             {selectedStacks.length > 0 && (
                                 <>
                                     <Text style={s.breadcrumbArrow}>›</Text>
+                                    {/* mostra no máximo 3 stacks pra não estourar a linha */}
                                     {selectedStacks.slice(0, 3).map(id => (
                                         <View key={id} style={s.breadcrumbChipSmall}>
                                             <Text style={s.breadcrumbSmallText}>{id}</Text>
@@ -370,7 +390,6 @@ export default function AddLearningModal({ visible, onClose, onSave }: AddLearni
                         </Animated.View>
                     )}
 
-                    {/* Steps */}
                     {step === 0 && <StepArea onSelect={handleAreaSelect} />}
                     {step === 1 && selectedArea && (
                         <StepStack
@@ -428,13 +447,11 @@ const s = StyleSheet.create({
         padding: 8, borderWidth: 1, borderColor: '#2a2040',
     },
 
-    // Step dots
     stepDots: { flexDirection: 'row', gap: 5 },
     stepDot:  { width: 6, height: 6, borderRadius: 3, backgroundColor: '#2a2040' },
-    stepDotActive: { backgroundColor: '#8b5cf6', width: 18 },
+    stepDotActive: { backgroundColor: '#8b5cf6', width: 18 },  // pílula no passo atual
     stepDotDone:   { backgroundColor: '#8b5cf620', borderWidth: 1, borderColor: '#8b5cf6' },
 
-    // Breadcrumb
     breadcrumb: {
         flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap',
         gap: 6, paddingHorizontal: 20, marginBottom: 12,
@@ -454,12 +471,10 @@ const s = StyleSheet.create({
     breadcrumbSmallText: { color: '#9aa0aa', fontSize: 11, fontWeight: '600' },
     breadcrumbMore: { color: '#44415a', fontSize: 11 },
 
-    // Step wrapper
     stepWrap: { paddingHorizontal: 20, paddingTop: 4 },
     stepTitle: { color: '#fff', fontSize: 16, fontWeight: '800', marginBottom: 4 },
     stepSub:   { color: '#6b6880', fontSize: 13, marginBottom: 16 },
 
-    // Area grid
     areaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 8 },
     areaCard: {
         width: (SW - 40 - 20) / 3,
@@ -471,7 +486,6 @@ const s = StyleSheet.create({
     areaEmoji:  { fontSize: 10, marginTop: -4 },
     areaLabel:  { fontSize: 12, fontWeight: '700' },
 
-    // Stack list
     stackList: { gap: 8, paddingBottom: 8 },
     stackChip: {
         flexDirection: 'row', alignItems: 'center', gap: 12,
@@ -485,7 +499,6 @@ const s = StyleSheet.create({
     },
     stackLabel: { color: '#d4d0e8', fontSize: 14, fontWeight: '500' },
 
-    // Type grid
     typeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, marginBottom: 16 },
     typeCard: {
         width: (SW - 40 - 18) / 3,
@@ -496,7 +509,6 @@ const s = StyleSheet.create({
     typeEmoji: { fontSize: 20 },
     typeLabel: { color: '#9aa0aa', fontSize: 11, fontWeight: '600', textAlign: 'center' },
 
-    // Preview
     previewWrap: {
         backgroundColor: '#0d0d10', borderRadius: 14, padding: 14,
         borderWidth: 1, borderColor: '#2a2040', marginBottom: 16,
@@ -511,7 +523,6 @@ const s = StyleSheet.create({
         minHeight: 60, textAlignVertical: 'top',
     },
 
-    // Nav row
     navRow: { flexDirection: 'row', gap: 10, marginTop: 4 },
     backBtn: {
         flexDirection: 'row', alignItems: 'center', gap: 4,
