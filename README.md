@@ -1,11 +1,11 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Gregwzx/Devtrack/main/devtrack-mobile/assets/icon.png" width="120" alt="DevTrack Logo"/>
+  <img src="https://raw.githubusercontent.com/Gregwzx/Devtrack/main/devtrack-mobile/assets/images/icon.png" width="120" alt="DevTrack Logo"/>
 </p>
 
 <h1 align="center">DevTrack</h1>
 
 <p align="center">
-Acompanhe seu aprendizado. Construa consistência. Visualize sua evolução.
+  Plataforma mobile para acompanhamento estruturado da evolução profissional por meio do registro contínuo de aprendizado.
 </p>
 
 <p align="center">
@@ -17,68 +17,68 @@ Acompanhe seu aprendizado. Construa consistência. Visualize sua evolução.
 
 ---
 
-# 📱 Sobre o DevTrack
+## 📱 Sobre o Projeto
 
-**DevTrack** é um aplicativo mobile criado para ajudar estudantes e desenvolvedores a **acompanhar sua evolução profissional através do registro diário de aprendizado e métricas de consistência**.
+O **DevTrack** é uma aplicação mobile desenvolvida com o objetivo de auxiliar estudantes e desenvolvedores no acompanhamento da sua evolução profissional, por meio do registro diário de aprendizado e análise de consistência.
 
-Diferente de plataformas focadas em rede social, o DevTrack tem como objetivo **focar totalmente no progresso individual**.
+Diferentemente de plataformas com foco social, o DevTrack prioriza exclusivamente o **desenvolvimento individual**, promovendo uma abordagem orientada a dados e progresso contínuo.
 
-A ideia é simples:
+A proposta central do projeto é:
 
-> Transformar aprendizado diário em progresso visível.
-
-Com o DevTrack, o usuário pode registrar o que aprendeu, acompanhar sua consistência e visualizar sua evolução ao longo do tempo.
+> **Transformar o aprendizado diário em progresso mensurável e visualmente compreensível.**
 
 ---
 
-# 🚀 A Ideia
+## 🎯 Objetivo
 
-Muitos desenvolvedores estudam todos os dias, mas raramente conseguem **ver o quanto evoluíram ao longo do tempo**.
+O projeto surge da dificuldade comum entre estudantes de tecnologia:
 
-O DevTrack foi criado para transformar aprendizado em:
+> A ausência de visibilidade sobre a própria evolução ao longo do tempo.
 
-- 📊 progresso mensurável  
-- 🔥 streaks de consistência  
-- 📅 histórico visual de aprendizado  
-- 🧠 registro estruturado de conhecimento  
+O DevTrack busca resolver esse problema ao converter esforço diário em:
 
-Podemos pensar nele como um:
+- Progresso quantificável  
+- Indicadores de consistência  
+- Histórico estruturado de aprendizado  
+- Visualizações intuitivas da evolução  
 
-> **"GitHub da evolução pessoal."**
+Pode ser interpretado como:
 
----
-
-# ✨ Funcionalidades
-
-## ✅ Implementado
-
-- 📊 **Dashboard de progresso**
-- 🔥 **Sistema de streak (dias consecutivos estudando)**
-- 🧠 **Registro diário "O que aprendi hoje"**
-- 👤 **Perfil com estatísticas pessoais**
-- 📅 **Heatmap de aprendizado estilo GitHub**
-- 🎨 **Interface moderna focada em produtividade**
+> **Uma plataforma de versionamento da evolução pessoal, inspirada no GitHub.**
 
 ---
 
-## 🚧 Em desenvolvimento
+## ✨ Funcionalidades
 
-- 🔐 Login com Google
-- 💾 Persistência de dados do usuário
-- 🤖 Sugestões inteligentes de estudo com IA (Gemini)
+### ✅ Implementadas
 
----
-
-## 💡 Planejado
-
-- 🎯 Metas semanais e mensais
-- 🔔 Notificações e lembretes motivacionais
-- 📈 Estatísticas avançadas de evolução
-- 🧠 Insights de aprendizado gerados por IA
+- Dashboard de progresso do usuário  
+- Sistema de streak (dias consecutivos de estudo)  
+- Registro diário de aprendizado ("O que aprendi hoje")  
+- Perfil com estatísticas individuais  
+- Heatmap de atividade inspirado no GitHub  
+- Interface moderna com foco em produtividade  
 
 ---
 
-# 📸 Screenshots
+### 🚧 Em desenvolvimento
+
+- Autenticação com Google  
+- Persistência de dados do usuário  
+- Integração com IA para sugestões de estudo (Google Gemini)  
+
+---
+
+### 💡 Planejadas
+
+- Definição de metas semanais e mensais  
+- Sistema de notificações e lembretes  
+- Estatísticas avançadas de desempenho  
+- Geração de insights personalizados com IA  
+
+---
+
+## 📸 Capturas de Tela
 
 <p align="center">
   <img src="screenshots/home.png" width="250"/>
@@ -87,56 +87,59 @@ Podemos pensar nele como um:
 
 ---
 
-# 🧱 Tecnologias Utilizadas
+## 🧱 Tecnologias Utilizadas
 
-O DevTrack foi desenvolvido utilizando tecnologias modernas de desenvolvimento mobile.
+O desenvolvimento do DevTrack foi baseado em tecnologias modernas do ecossistema mobile:
 
-- **React Native**
-- **Expo**
-- **TypeScript**
-- **Firebase Authentication (planejado)**
-- **AsyncStorage / Backend (planejado)**
-- **Google Gemini API (sugestões com IA)**
+- React Native  
+- Expo  
+- TypeScript  
+- Firebase Authentication (planejado)  
+- AsyncStorage / Backend (em definição)  
+- Google Gemini API (integração futura com IA)  
 
-⚠️ Atualmente os dados da IA estão **mockados**, pois a API Key funciona apenas na versão APK do aplicativo.
+> ⚠️ Observação: Atualmente, os dados relacionados à IA estão mockados, devido à limitação de uso da API fora do ambiente APK.
 
 ---
 
-🧠 Filosofia do Produto
+## 🧠 Fundamentação Conceitual
 
-O DevTrack foi criado com base em três princípios:
+O DevTrack é estruturado com base em três pilares fundamentais:
 
-Consistência
+### Consistência  
+A evolução profissional é resultado da prática contínua e incremental.
 
-Aprender um pouco todos os dias gera evolução real.
+### Visibilidade  
+A percepção do progresso é essencial para manutenção da motivação.
 
-Visibilidade
+### Simplicidade  
+Ambientes sem distrações favorecem maior foco e produtividade.
 
-O progresso precisa ser visível para manter a motivação.
+---
 
-Simplicidade
+## 📌 Status do Projeto
 
-Sem feeds sociais, sem distrações. Apenas sua evolução.
+🚧 Em desenvolvimento ativo  
 
-📌 Status do Projeto
+Este projeto está sendo desenvolvido com dupla finalidade:
 
-🚧 Em desenvolvimento ativo
+- Composição de portfólio profissional  
+- Aplicação acadêmica no contexto universitário  
 
-Este projeto está sendo desenvolvido como:
+Evoluções futuras incluem o uso de inteligência artificial para análise de aprendizado e recomendação personalizada de estudos.
 
-projeto de portfólio
+---
 
-projeto acadêmico da universidade
+## 👨‍💻 Autor
 
-Versões futuras incluirão recomendações inteligentes de estudo e análises mais avançadas de evolução.
+**Jailson Ferreira**  
 
-👨‍💻 Autor
+- GitHub: https://github.com/Gregwzx  
 
-Jailson Ferreira
+---
 
-GitHub
-https://github.com/Gregwzx
+## ⭐ Contribuição e Apoio
 
-⭐ Apoie o projeto
+Caso o projeto tenha sido útil ou interessante para você, considere contribuir ou deixar uma ⭐ no repositório.
 
-Se você gostou da ideia do DevTrack, considere deixar uma ⭐ no repositório.
+Isso ajuda na visibilidade e evolução da proposta.
