@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
     ScrollView, StyleSheet, View, Text, TouchableOpacity,
     Image, TextInput, Modal, Pressable, Alert, Linking,
-    ActivityIndicator, Dimensions,
+    ActivityIndicator, Dimensions, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, {
@@ -409,16 +409,16 @@ export default function ProfileScreen() {
     const email = user?.email ?? '';
 
     const [local, setLocal]             = useState<LocalProfile>(DEFAULT_LOCAL);
-    const [streak, setStreak]           = useState(0);
+    const [streak, setStreak]           = useState(user?.streak ?? 0);
     const [learnings, setLearnings]     = useState<LearningItem[]>([]);
-    const [studyArea, setStudyArea]     = useState<StudyArea>('fullstack');
+    const [studyArea, setStudyArea]     = useState<StudyArea>((user?.studyArea as StudyArea) ?? 'fullstack');
     const [editVisible, setEditVisible] = useState(false);
     const [saving, setSaving]           = useState(false);
     const [loading, setLoading]         = useState(true);
     const [loadError, setLoadError]     = useState(false);
     const [expanded, setExpanded]       = useState(false);
 
-    const displayName   = user?.displayName ?? 'Dev';
+    const displayName   = user?.name ?? 'Dev';
     const initials      = displayName.split(' ').slice(0,2).map((n: string) => n[0]).join('').toUpperCase();
     const areaConfig    = AREA_CONFIG[studyArea];
     const badges        = computeBadges(streak, learnings.length);
@@ -444,9 +444,9 @@ export default function ProfileScreen() {
             if (learnRaw)  setLearnings(JSON.parse(learnRaw));
             if (areaRaw)   setStudyArea(areaRaw as StudyArea);
 
-            // Tenta sincronizar com Firestore
-            if (user?.uid) {
-                const remote = await getUserData(user.uid, email);
+            // Tenta sincronizar com o backend
+            if (user?.id) {
+                const remote = await getUserData(user.id, email);
                 if (remote) {
                     setLocal(prev => ({
                         ...prev,
@@ -462,16 +462,15 @@ export default function ProfileScreen() {
             }
         } catch { setLoadError(true); }
         finally  { setLoading(false); }
-    }, [user?.uid, email]);
+    }, [user?.id, email]);
 
     useEffect(() => { loadData(); }, [loadData]);
 
     const handleSave = async (p: LocalProfile, localPhotoUri?: string) => {
-        if (!user?.uid || !keys) return;
+        if (!user?.id || !keys) return;
         setSaving(true);
         try {
-            // saveProfile faz upload da foto se tiver URI local e retorna a URL final
-            const finalPhotoURL = await saveProfile(user.uid, email, {
+            const finalPhotoURL = await saveProfile(user.id, email, {
                 bio:         p.bio,
                 photoURL:    p.photoURL,
                 bannerColor: p.bannerColor,
@@ -497,10 +496,16 @@ export default function ProfileScreen() {
     };
 
     const handleLogout = () => {
-        Alert.alert('Sair', 'Deseja encerrar a sessão?', [
-            { text: 'Cancelar', style: 'cancel' },
-            { text: 'Sair', style: 'destructive', onPress: signOutUser },
-        ]);
+        if (Platform.OS === 'web') {
+            if (window.confirm('Deseja encerrar a sessão?')) {
+                signOutUser();
+            }
+        } else {
+            Alert.alert('Sair', 'Deseja encerrar a sessão?', [
+                { text: 'Cancelar', style: 'cancel' },
+                { text: 'Sair', style: 'destructive', onPress: signOutUser },
+            ]);
+        }
     };
 
     if (loading) {

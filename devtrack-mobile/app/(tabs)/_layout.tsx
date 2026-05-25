@@ -56,7 +56,7 @@ function TabButton({
             ]}>
                 <Ionicons
                     name={(focused ? icon : `${icon}-outline`) as any}
-                    size={22}
+                    size={20}
                     color={focused ? ACCENT : '#4a4860'}
                 />
             </View>
@@ -170,15 +170,14 @@ export default function TabsLayout() {
 
 const styles = StyleSheet.create({
     btn: {
-        flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 3,
-        paddingTop: 8,
+        gap: 2,
+        paddingTop: 4,
     },
     iconWrap: {
-        width: 44,
-        height: 36,
+        width: 40,
+        height: 32,
         borderRadius: 12,
         alignItems: 'center',
         justifyContent: 'center',
@@ -192,6 +191,6 @@ const styles = StyleSheet.create({
         width: 4,
         height: 4,
         borderRadius: 2,
-        marginTop: 1,
+        marginTop: 2,
     },
 });

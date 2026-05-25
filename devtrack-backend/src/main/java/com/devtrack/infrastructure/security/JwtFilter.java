@@ -1,42 +1,64 @@
-// JwtService.java
-@Service
-public class JwtService {
+package com.devtrack.infrastructure.security;
 
-    @Value("${jwt.secret}")
-    private String secret;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
 
-    private static final long ACCESS_TTL  = 15 * 60 * 1000;        // 15min
-    private static final long REFRESH_TTL = 7 * 24 * 60 * 60 * 1000; // 7d
+import java.io.IOException;
 
-    public String generateAccess(String userId) {
-        return Jwts.builder()
-            .subject(userId)
-            .issuedAt(new Date())
-            .expiration(new Date(System.currentTimeMillis() + ACCESS_TTL))
-            .signWith(getKey())
-            .compact();
-    }
+// filtro que roda em TODA requisição — intercepta antes dos controllers
+// valida o JWT e autentica o usuário no contexto do Spring Security
+@Component
+@RequiredArgsConstructor
+public class JwtFilter extends OncePerRequestFilter {
 
-    public String generateRefresh(String userId) {
-        return Jwts.builder()
-            .subject(userId)
-            .claim("type", "refresh")
-            .issuedAt(new Date())
-            .expiration(new Date(System.currentTimeMillis() + REFRESH_TTL))
-            .signWith(getKey())
-            .compact();
-    }
+    private final JwtService jwtService;
+    private final CustomUserDetailsService userDetailsService;
 
-    public String extractUserId(String token) {
-        return Jwts.parser()
-            .verifyWith(getKey())
-            .build()
-            .parseSignedClaims(token)
-            .getPayload()
-            .getSubject();
-    }
+    @Override
+    protected void doFilterInternal(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain chain
+    ) throws ServletException, IOException {
 
-    private SecretKey getKey() {
-        return Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret));
+        String authHeader = request.getHeader("Authorization");
+
+        // se não tiver o header ou não começar com Bearer, passa direto
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            chain.doFilter(request, response);
+            return;
+        }
+
+        String token = authHeader.substring(7); // remove o "Bearer " do início
+
+        // token inválido ou expirado — passa direto, o Security bloqueia depois
+        if (!jwtService.isValid(token)) {
+            chain.doFilter(request, response);
+            return;
+        }
+
+        String userId = jwtService.extractUserId(token); // pega o userId do payload JWT
+
+        // injeta o usuário no SecurityContext se ainda não estiver autenticado
+        if (userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            UserDetails userDetails = userDetailsService.loadUserByUsername(userId);
+
+            UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                    userDetails, null, userDetails.getAuthorities()
+            );
+            auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+            SecurityContextHolder.getContext().setAuthentication(auth);
+        }
+
+        chain.doFilter(request, response); // passa para o próximo filtro/controller
     }
 }

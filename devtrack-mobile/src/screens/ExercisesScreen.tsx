@@ -386,23 +386,24 @@ export default function ExercisesScreen() {
             </Animated.View>
 
             {/* Filtros categoria */}
-            <Animated.ScrollView
-                entering={FadeInDown.delay(120).duration(300)}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={s.filterCatRow}
-            >
-                <FilterPill label="Todas" active={catFilter === 'all'} onPress={() => setCatAnimated('all')} />
-                {CATEGORY_META.map(cat => (
-                    <FilterPill
-                        key={cat.id}
-                        label={`${cat.emoji} ${cat.label}`}
-                        active={catFilter === cat.id}
-                        color={cat.color}
-                        onPress={() => setCatAnimated(catFilter === cat.id ? 'all' : cat.id as Category)}
-                    />
-                ))}
-            </Animated.ScrollView>
+            <Animated.View entering={FadeInDown.delay(120).duration(300)}>
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={s.filterCatRow}
+                >
+                    <FilterPill label="Todas" active={catFilter === 'all'} onPress={() => setCatAnimated('all')} />
+                    {CATEGORY_META.map(cat => (
+                        <FilterPill
+                            key={cat.id}
+                            label={`${cat.emoji} ${cat.label}`}
+                            active={catFilter === cat.id}
+                            color={cat.color}
+                            onPress={() => setCatAnimated(catFilter === cat.id ? 'all' : cat.id as Category)}
+                        />
+                    ))}
+                </ScrollView>
+            </Animated.View>
 
             {/* Lista */}
             <Animated.ScrollView
@@ -473,8 +474,8 @@ const s = StyleSheet.create({
     summaryLabel:   { color: '#6b6880', fontSize: 10, fontWeight: '600' },
     summaryDivider: { width: 1, backgroundColor: '#2a2040', marginVertical: 2 },
 
-    filterStatusRow:{ flexDirection: 'row', paddingHorizontal: 16, gap: 6, marginBottom: 8 },
-    filterCatRow:   { paddingHorizontal: 16, gap: 6, paddingBottom: 14 },
+    filterStatusRow:{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, gap: 6, marginBottom: 8 },
+    filterCatRow:   { paddingHorizontal: 16, paddingRight: 32, gap: 6, paddingBottom: 14 },
     filterPill:     { paddingHorizontal: 13, paddingVertical: 7, borderRadius: 20, backgroundColor: '#16151d', borderWidth: 1, borderColor: '#2a2040' },
     filterPillText: { color: '#6b6880', fontSize: 12, fontWeight: '600' },
 

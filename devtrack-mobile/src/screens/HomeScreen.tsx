@@ -13,16 +13,16 @@ import Animated, {
     interpolate, Extrapolation,
 } from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
     Flame, BarChart2, Brain, Plus, BookOpen,
     Trash2, Clock, Star, Play, Pause, RotateCcw,
     Coffee, CheckCircle, Target, Zap, TrendingUp,
 } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
-import { saveStreak, saveLearnings, getStorageKeys } from '../services/userService';
+import { useHomeData } from '../hooks/useHomeData';
+import OfflineBanner from '../components/common/OfflineBanner';
 import { AREA_CONFIG } from '../constants/areas';
-import { todayKey, yesterdayKey, formatHeaderDate, formatAgo } from '../../utils/dateHelpers';
+import { formatHeaderDate, formatAgo } from '../../utils/dateHelpers';
 import { useParallaxScroll, useFilterTransition, PARALLAX_HEIGHT } from '../hooks/useParallaxScroll';
 import type { StudyArea } from '../services/ai.service';
 
@@ -30,32 +30,8 @@ const { width: SW } = Dimensions.get('window');
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-interface StreakData { count: number; lastDate: string | null; }
 interface Learning  { id: string; text: string; date: string; }
 interface Stats     { totalHours: number; skills: number; learnings: number; }
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-async function checkAndUpdateStreak(
-    streakKey: string, uid?: string, email?: string,
-): Promise<StreakData> {
-    const today     = todayKey();
-    const yesterday = yesterdayKey();
-    const raw       = await AsyncStorage.getItem(streakKey);
-    const streak: StreakData = raw ? JSON.parse(raw) : { count: 0, lastDate: null };
-    if (streak.lastDate === today) return streak;
-    const newCount  = streak.lastDate === yesterday ? streak.count + 1 : 1;
-    const updated: StreakData = { count: newCount, lastDate: today };
-    await AsyncStorage.setItem(streakKey, JSON.stringify(updated));
-    if (uid && email) await saveStreak(uid, email, newCount, today);
-    return updated;
-}
-
-async function getSessionHours(sessionKey: string): Promise<number> {
-    const raw = await AsyncStorage.getItem(sessionKey);
-    if (!raw) { await AsyncStorage.setItem(sessionKey, Date.now().toString()); return 0; }
-    const elapsed = (Date.now() - Number(raw)) / 3_600_000;
-    return Math.round(elapsed * 10) / 10;
-}
 
 function pad(n: number) { return String(n).padStart(2, '0'); }
 
@@ -432,16 +408,17 @@ function LearningsCard({ learnings, onAdd, onDelete }: {
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function HomeScreen() {
     const { user } = useAuth();
-    const email    = user?.email ?? '';
 
-    const [streak,    setStreak]    = useState(0);
-    const [learnings, setLearnings] = useState<Learning[]>([]);
-    const [stats,     setStats]     = useState<Stats>({ totalHours: 0, skills: 0, learnings: 0 });
-    const [studyArea, setStudyArea] = useState<StudyArea>('fullstack');
-    const [xp,        setXp]        = useState(0);
+    // Toda a lógica de dados, cache e sync vive no hook
+    const {
+        streak, learnings, studyArea, xp, sessionHours,
+        syncing, isOnline,
+        handleAddLearning, handleDeleteLearning,
+    } = useHomeData();
 
-    const firstName = user?.displayName?.split(' ')[0] ?? 'Dev';
-    const keys      = email ? getStorageKeys(email) : null;
+    const stats: Stats = { totalHours: sessionHours, skills: 0, learnings: learnings.length };
+
+    const firstName = user?.name?.split(' ')[0] ?? 'Dev';
 
     // ── Paralaxe ──────────────────────────────────────────────────────────────
     const {
@@ -453,61 +430,11 @@ export default function HomeScreen() {
         headerBgStyle,
     } = useParallaxScroll();
 
-    const loadData = useCallback(async () => {
-        if (!keys) return;
-        const [streakData, learnRaw, statsRaw, areaRaw, sessionHours, xpRaw] = await Promise.all([
-            checkAndUpdateStreak(keys.streak, user?.uid, email),
-            AsyncStorage.getItem(keys.learnings),
-            AsyncStorage.getItem(keys.stats),
-            AsyncStorage.getItem(keys.area),
-            getSessionHours(keys.session),
-            AsyncStorage.getItem(`${keys.profile}_SUGGESTIONS_XP`),
-        ]);
-        setStreak(streakData.count);
-        const list: Learning[] = learnRaw ? JSON.parse(learnRaw) : [];
-        setLearnings(list);
-        const s: Stats = statsRaw ? JSON.parse(statsRaw) : { totalHours: 0, skills: 0, learnings: 0 };
-        setStats({ ...s, totalHours: sessionHours, learnings: list.length });
-        if (areaRaw) setStudyArea(areaRaw as StudyArea);
-        if (xpRaw)   setXp(Number(xpRaw));
-    }, [user?.uid, email]);
-
-    useEffect(() => { loadData(); }, [loadData]);
-
-    const handleAddLearning = async (text: string, meta?: any) => {
-        if (!keys) return;
-        const item: Learning = { id: Date.now().toString(), text, date: new Date().toISOString() };
-        const updated = [item, ...learnings];
-        setLearnings(updated);
-        await AsyncStorage.setItem(keys.learnings, JSON.stringify(updated));
-        if (user?.uid) await saveLearnings(user.uid, email, updated);
-        const newStats = { ...stats, learnings: updated.length };
-        setStats(newStats);
-        await AsyncStorage.setItem(keys.stats, JSON.stringify(newStats));
-        if (meta?.area && keys) {
-            const areaMap: Record<string, StudyArea> = { frontend: 'frontend', backend: 'backend', mobile: 'frontend', devops: 'backend', fullstack: 'fullstack', security: 'backend' };
-            const mapped = areaMap[meta.area] ?? 'fullstack';
-            setStudyArea(mapped);
-            await AsyncStorage.setItem(keys.area, mapped);
-        }
-        const newXp = xp + 10;
-        setXp(newXp);
-        await AsyncStorage.setItem(`${keys.profile}_SUGGESTIONS_XP`, String(newXp));
-    };
-
-    const handleDeleteLearning = async (id: string) => {
-        if (!keys) return;
-        const updated = learnings.filter(l => l.id !== id);
-        setLearnings(updated);
-        await AsyncStorage.setItem(keys.learnings, JSON.stringify(updated));
-        if (user?.uid) await saveLearnings(user.uid, email, updated);
-        const newStats = { ...stats, learnings: updated.length };
-        setStats(newStats);
-        await AsyncStorage.setItem(keys.stats, JSON.stringify(newStats));
-    };
-
     return (
         <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+
+            {/* Banner de offline — desliza de cima quando sem internet */}
+            <OfflineBanner visible={!isOnline} />
 
             {/* ── Header colapsável com paralaxe ── */}
             <Animated.View style={[styles.headerContainer, headerContainerStyle]}>
@@ -546,9 +473,9 @@ export default function HomeScreen() {
                 contentContainerStyle={styles.content}
             >
                 <StreakCard streak={streak} />
+                <LearningsCard learnings={learnings} onAdd={handleAddLearning} onDelete={handleDeleteLearning} />
                 <StatsCard streak={streak} learnings={learnings} xp={xp} studyArea={studyArea} sessionHours={stats.totalHours} />
                 <PomodoroTimer onAddLearning={handleAddLearning} />
-                <LearningsCard learnings={learnings} onAdd={handleAddLearning} onDelete={handleDeleteLearning} />
             </Animated.ScrollView>
         </SafeAreaView>
     );
