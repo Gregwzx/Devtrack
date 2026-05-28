@@ -1,6 +1,3 @@
-// app/(tabs)/profile.tsx
-import ProfileScreen from '../../src/screens/ProfileScreen';
-
-export default function Profile() {
-    return <ProfileScreen />;
-}
+// app/(tabs)/profile.tsx — bridge para AvatarStudioScreen
+import AvatarStudioScreen from '../../src/screens/AvatarStudioScreen';
+export default AvatarStudioScreen;

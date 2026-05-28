@@ -1,535 +1,530 @@
-// src/screens/ExercisesScreen.tsx — layout redesenhado
-import React, { useState, useEffect, useCallback } from 'react';
+// src/screens/ExercisesScreen.tsx
+// Trilha de exercícios estilo Duolingo — paradas por área de estudo + quiz de vidas
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-    StyleSheet, View, Text, TouchableOpacity,
-    Modal, Dimensions, ScrollView,
+    View, Text, StyleSheet, ScrollView, TouchableOpacity,
+    Modal, Pressable, Dimensions, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, {
-    FadeInDown, FadeInLeft,
+    FadeIn, FadeInDown, FadeInUp,
     useSharedValue, useAnimatedStyle,
-    withSpring, withDelay, withTiming, withSequence,
-    interpolate, Extrapolation,
+    withRepeat, withSequence, withTiming, withSpring,
 } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {
-    CheckCircle, Circle, X, Star,
-    Lightbulb, BookOpen, Code2, Target, Zap, Lock,
-} from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
-import { getStorageKeys } from '../services/userService';
-import {
-    EXERCISES, CATEGORY_META,
-    type Exercise, type Category,
-} from '../data/exercises';
+import { useLives } from '../context/LivesContext';
+import LivesBar from '../components/common/LivesBar';
+import NoLivesModal from '../components/common/NoLivesModal';
+import { EXERCISES, type Exercise } from '../data/exercises';
+import { getTrailForArea, type TrailStop } from '../data/trail';
+import type { StudyArea } from '../services/ai.service';
 
 const { width: SW } = Dimensions.get('window');
+const STORAGE_KEY_PREFIX = 'DEVTRACK_TRAIL_';
+const XP_KEY_PREFIX = 'DEVTRACK_XP_';
 
-const DIFF_COLORS = {
-    iniciante:     '#10b981',
-    intermediário: '#f59e0b',
-    avançado:      '#ef4444',
-} as const;
-
-function categoryColor(cat: Category): string {
-    return CATEGORY_META.find(c => c.id === cat)?.color ?? '#8b5cf6';
+// ─── Pulsating stop indicator ─────────────────────────────────────────────────
+function PulseRing({ color }: { color: string }) {
+    const scale = useSharedValue(1);
+    const opacity = useSharedValue(0.8);
+    useEffect(() => {
+        scale.value = withRepeat(withSequence(withTiming(1.3, { duration: 900 }), withTiming(1, { duration: 900 })), -1, true);
+        opacity.value = withRepeat(withSequence(withTiming(0.2, { duration: 900 }), withTiming(0.7, { duration: 900 })), -1, true);
+    }, []);
+    const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }], opacity: opacity.value }));
+    return <Animated.View style={[styles.pulseRing, { borderColor: color }, style]} />;
 }
 
-// ─── Filter Transition Hook ───────────────────────────────────────────────────
-function useFilterTransition() {
-    const opacity    = useSharedValue(1);
-    const translateY = useSharedValue(0);
-    const transition = (callback: () => void) => {
-        opacity.value    = withTiming(0, { duration: 100 });
-        translateY.value = withTiming(-4, { duration: 100 });
-        setTimeout(() => {
-            callback();
-            opacity.value    = withSpring(1, { damping: 20, stiffness: 220 });
-            translateY.value = withSpring(0, { damping: 20, stiffness: 220 });
-        }, 110);
-    };
-    const style = useAnimatedStyle(() => ({
-        opacity: opacity.value,
-        transform: [{ translateY: translateY.value }],
-    }));
-    return { transition, style };
-}
+// ─── Trail stop node ───────────────────────────────────────────────────────────
+type StopStatus = 'completed' | 'active' | 'locked';
 
-// ─── Detail Modal ─────────────────────────────────────────────────────────────
-function DetailModal({ visible, exercise, completed, onClose, onComplete }: {
-    visible: boolean; exercise: Exercise | null;
-    completed: boolean; onClose: () => void; onComplete: () => void;
+function TrailNode({ stop, status, onPress, isLeft }: {
+    stop: TrailStop; status: StopStatus; onPress: () => void; isLeft: boolean;
 }) {
-    if (!exercise) return null;
-    const color     = categoryColor(exercise.category);
-    const diffColor = DIFF_COLORS[exercise.difficulty];
+    const scale = useSharedValue(1);
+    const pressStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
     return (
-        <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-            <SafeAreaView style={s.detailContainer} edges={['top', 'left', 'right']}>
-                <View style={s.detailHeader}>
-                    <TouchableOpacity style={s.closeBtn} onPress={onClose}>
-                        <X size={18} color="#6b6880" strokeWidth={2} />
-                    </TouchableOpacity>
-                </View>
-                <Animated.ScrollView contentContainerStyle={s.detailBody} showsVerticalScrollIndicator={false}>
-                    <Animated.View entering={FadeInDown.delay(50).duration(320)} style={s.detailIconRow}>
-                        <View style={[s.detailIconWrap, { backgroundColor: color + '18', borderColor: color + '40' }]}>
-                            <Code2 size={26} color={color} strokeWidth={2} />
-                        </View>
-                        {completed && (
-                            <View style={s.donePill}>
-                                <CheckCircle size={11} color="#10b981" strokeWidth={2.5} />
-                                <Text style={s.donePillText}>Concluído</Text>
-                            </View>
-                        )}
+        <View style={[styles.nodeRow, isLeft ? styles.nodeLeft : styles.nodeRight]}>
+            <Pressable
+                onPressIn={() => (scale.value = withSpring(0.93))}
+                onPressOut={() => (scale.value = withSpring(1))}
+                onPress={onPress}
+                disabled={status === 'locked'}
+            >
+                <Animated.View style={pressStyle}>
+                    {status === 'active' && <PulseRing color={stop.color} />}
+
+                    <View style={[
+                        styles.node,
+                        status === 'completed' && { backgroundColor: stop.color, borderColor: stop.color },
+                        status === 'active'    && { backgroundColor: stop.color + '22', borderColor: stop.color, borderWidth: 3 },
+                        status === 'locked'    && { backgroundColor: '#1a1826', borderColor: '#2a2040' },
+                    ]}>
+                        <Text style={[styles.nodeIcon, status === 'locked' && { opacity: 0.3 }]}>
+                            {status === 'locked' ? '🔒' : status === 'completed' ? '✓' : stop.icon}
+                        </Text>
+                    </View>
+
+                    {/* Label abaixo */}
+                    <View style={styles.nodeLabel}>
+                        <Text style={[styles.nodeName, status === 'locked' && { color: '#2a2040' }]} numberOfLines={1}>
+                            {stop.title}
+                        </Text>
+                        <Text style={[styles.nodeSub, status === 'locked' && { color: '#1a1826' }]} numberOfLines={1}>
+                            {status === 'completed' ? `✓ ${stop.xpReward} XP` : stop.subtitle}
+                        </Text>
+                    </View>
+                </Animated.View>
+            </Pressable>
+        </View>
+    );
+}
+
+// ─── Quiz Modal ────────────────────────────────────────────────────────────────
+function QuizModal({ exercise, visible, onClose, onCorrect, onWrong }: {
+    exercise: Exercise | null;
+    visible: boolean;
+    onClose: () => void;
+    onCorrect: (xp: number) => void;
+    onWrong: () => void;
+}) {
+    const [selected, setSelected] = useState<number | null>(null);
+    const [answered, setAnswered] = useState(false);
+    const shakeX = useSharedValue(0);
+    const shakeStyle = useAnimatedStyle(() => ({ transform: [{ translateX: shakeX.value }] }));
+
+    useEffect(() => { if (visible) { setSelected(null); setAnswered(false); } }, [visible]);
+
+    if (!exercise) return null;
+
+    const handleAnswer = (idx: number) => {
+        if (answered) return;
+        setSelected(idx);
+        setAnswered(true);
+
+        if (idx === exercise.quiz.correctIndex) {
+            onCorrect(exercise.xp);
+        } else {
+            shakeX.value = withSequence(
+                withTiming(-8, { duration: 60 }), withTiming(8, { duration: 60 }),
+                withTiming(-6, { duration: 60 }), withTiming(6, { duration: 60 }),
+                withTiming(0, { duration: 60 }),
+            );
+            onWrong();
+        }
+    };
+
+    const isCorrect = selected === exercise.quiz.correctIndex;
+
+    return (
+        <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+            <View style={qStyles.overlay}>
+                <Animated.View entering={FadeInUp.springify()} style={qStyles.card}>
+
+                    <View style={qStyles.header}>
+                        <Text style={qStyles.category}>{exercise.category.toUpperCase()}</Text>
+                        <Text style={qStyles.xp}>+{exercise.xp} XP</Text>
+                    </View>
+
+                    <Text style={qStyles.detail} numberOfLines={4}>{exercise.detail}</Text>
+
+                    <View style={qStyles.divider} />
+
+                    <Text style={qStyles.question}>{exercise.quiz.question}</Text>
+
+                    <Animated.View style={shakeStyle}>
+                        {exercise.quiz.options.map((opt, i) => {
+                            let optStyle = {};
+                            if (answered) {
+                                if (i === exercise.quiz.correctIndex) optStyle = qStyles.optCorrect;
+                                else if (i === selected) optStyle = qStyles.optWrong;
+                                else optStyle = qStyles.optDim;
+                            }
+                            return (
+                                <TouchableOpacity
+                                    key={i}
+                                    style={[qStyles.option, optStyle]}
+                                    onPress={() => handleAnswer(i)}
+                                    disabled={answered}
+                                    activeOpacity={0.8}
+                                >
+                                    <Text style={qStyles.optLetter}>{String.fromCharCode(65 + i)}</Text>
+                                    <Text style={qStyles.optText}>{opt}</Text>
+                                </TouchableOpacity>
+                            );
+                        })}
                     </Animated.View>
 
-                    <Animated.Text entering={FadeInDown.delay(80).duration(300)} style={s.detailTitle}>
-                        {exercise.title}
-                    </Animated.Text>
-                    <Animated.Text entering={FadeInDown.delay(100).duration(300)} style={s.detailDesc}>
-                        {exercise.description}
-                    </Animated.Text>
-
-                    <Animated.View entering={FadeInDown.delay(120).duration(280)} style={s.metaRow}>
-                        <View style={[s.pill, { backgroundColor: diffColor + '18', borderColor: diffColor + '40' }]}>
-                            <Text style={[s.pillText, { color: diffColor }]}>{exercise.difficulty}</Text>
-                        </View>
-                        <View style={[s.pill, { backgroundColor: color + '18', borderColor: color + '40' }]}>
-                            <Text style={[s.pillText, { color }]}>
-                                {CATEGORY_META.find(c => c.id === exercise.category)?.label}
+                    {/* Explicação pós-resposta */}
+                    {answered && (
+                        <Animated.View
+                            entering={FadeInDown.duration(300)}
+                            style={[qStyles.explanation, isCorrect ? qStyles.expCorrect : qStyles.expWrong]}
+                        >
+                            <Text style={[qStyles.expIcon]}>{isCorrect ? '✅' : '❌'}</Text>
+                            <Text style={[qStyles.expText, { color: isCorrect ? '#10b981' : '#ef4444' }]}>
+                                {exercise.quiz.explanation}
                             </Text>
-                        </View>
-                        <View style={[s.pill, { backgroundColor: '#f59e0b18', borderColor: '#f59e0b40' }]}>
-                            <Star size={10} color="#f59e0b" strokeWidth={2} />
-                            <Text style={[s.pillText, { color: '#f59e0b' }]}>{exercise.xp} XP</Text>
-                        </View>
-                    </Animated.View>
-
-                    <Animated.View entering={FadeInDown.delay(150).duration(280)} style={s.detailCard}>
-                        <View style={s.detailCardLabelRow}>
-                            <BookOpen size={12} color="#44415a" strokeWidth={2} />
-                            <Text style={s.detailCardLabel}>Enunciado</Text>
-                        </View>
-                        <Text style={s.detailCardBody}>{exercise.detail}</Text>
-                    </Animated.View>
-
-                    {exercise.example && (
-                        <Animated.View entering={FadeInDown.delay(170).duration(280)} style={[s.detailCard, s.exampleCard]}>
-                            <View style={s.detailCardLabelRow}>
-                                <Target size={12} color="#06b6d4" strokeWidth={2} />
-                                <Text style={[s.detailCardLabel, { color: '#06b6d4' }]}>Exemplo</Text>
-                            </View>
-                            <Text style={s.exampleText}>{exercise.example}</Text>
                         </Animated.View>
                     )}
 
-                    <Animated.View entering={FadeInDown.delay(190).duration(280)} style={[s.detailCard, s.hintCard]}>
-                        <View style={s.detailCardLabelRow}>
-                            <Lightbulb size={12} color="#f59e0b" strokeWidth={2} />
-                            <Text style={[s.detailCardLabel, { color: '#f59e0b' }]}>Dica</Text>
-                        </View>
-                        <Text style={s.hintText}>{exercise.hint}</Text>
-                    </Animated.View>
+                    <TouchableOpacity style={qStyles.closeBtn} onPress={onClose}>
+                        <Text style={qStyles.closeBtnText}>{answered ? 'Continuar' : 'Cancelar'}</Text>
+                    </TouchableOpacity>
 
-                    <Animated.View entering={FadeInDown.delay(210).duration(280)} style={s.tagsRow}>
-                        {exercise.tags.map((tag, i) => (
-                            <Animated.View key={tag} entering={FadeInDown.delay(210 + i * 25).duration(250)} style={s.tag}>
-                                <Text style={s.tagText}>#{tag}</Text>
-                            </Animated.View>
-                        ))}
-                    </Animated.View>
-
-                    <Animated.View entering={FadeInDown.delay(230).duration(300)}>
-                        <TouchableOpacity
-                            style={[s.completeBtn,
-                                completed
-                                    ? { backgroundColor: '#10b98115', borderWidth: 1, borderColor: '#10b98140' }
-                                    : { backgroundColor: color },
-                            ]}
-                            onPress={() => { if (!completed) onComplete(); }}
-                            disabled={completed}
-                        >
-                            {completed
-                                ? <><CheckCircle size={15} color="#10b981" strokeWidth={2.5} /><Text style={[s.completeBtnText, { color: '#10b981' }]}>Concluído!</Text></>
-                                : <><CheckCircle size={15} color="#fff" strokeWidth={2.5} /><Text style={s.completeBtnText}>Marcar como concluído</Text></>
-                            }
-                        </TouchableOpacity>
-                    </Animated.View>
-                </Animated.ScrollView>
-            </SafeAreaView>
+                </Animated.View>
+            </View>
         </Modal>
     );
 }
 
-// ─── Summary Bar ───────────────────────────────────────────────────────────────
-function SummaryBar({ completed, total, xp }: { completed: number; total: number; xp: number }) {
-    return (
-        <Animated.View entering={FadeInDown.delay(50).duration(350)} style={s.summaryBar}>
-            <View style={s.summaryItem}>
-                <CheckCircle size={14} color="#10b981" strokeWidth={2} />
-                <Text style={s.summaryNum}>{completed}</Text>
-                <Text style={s.summaryLabel}>Concluídos</Text>
-            </View>
-            <View style={s.summaryDivider} />
-            <View style={s.summaryItem}>
-                <Target size={14} color="#8b5cf6" strokeWidth={2} />
-                <Text style={s.summaryNum}>{total - completed}</Text>
-                <Text style={s.summaryLabel}>Restantes</Text>
-            </View>
-            <View style={s.summaryDivider} />
-            <View style={s.summaryItem}>
-                <Star size={14} color="#f59e0b" strokeWidth={2} />
-                <Text style={s.summaryNum}>{xp}</Text>
-                <Text style={s.summaryLabel}>XP ganho</Text>
-            </View>
-        </Animated.View>
-    );
-}
-
-// ─── Filter Pill ──────────────────────────────────────────────────────────────
-function FilterPill({ label, active, color, onPress }: {
-    label: string; active: boolean; color?: string; onPress: () => void;
+// ─── Stop Modal (lista dos 3 exercícios) ──────────────────────────────────────
+function StopModal({ stop, visible, onClose, completedIds, onSelectExercise }: {
+    stop: TrailStop | null; visible: boolean; onClose: () => void;
+    completedIds: Set<string>; onSelectExercise: (ex: Exercise) => void;
 }) {
-    return (
-        <TouchableOpacity
-            style={[s.filterPill,
-                active && { backgroundColor: color ? color + '20' : '#8b5cf620', borderColor: color ? color + '50' : '#8b5cf650' }
-            ]}
-            onPress={onPress}
-            activeOpacity={0.8}
-        >
-            <Text style={[s.filterPillText, active && { color: color ?? '#8b5cf6', fontWeight: '700' }]}>
-                {label}
-            </Text>
-        </TouchableOpacity>
-    );
-}
-
-// ─── Exercise Card ─────────────────────────────────────────────────────────────
-function ExerciseCard({ exercise, completed, onPress, delay }: {
-    exercise: Exercise; completed: boolean; onPress: () => void; delay: number;
-}) {
-    const color      = categoryColor(exercise.category);
-    const diffColor  = DIFF_COLORS[exercise.difficulty];
-    const scale      = useSharedValue(1);
-    const checkScale = useSharedValue(completed ? 1 : 0);
-
-    useEffect(() => {
-        if (completed) {
-            checkScale.value = withSequence(withSpring(1.3, { damping: 10 }), withSpring(1, { damping: 14 }));
-        } else {
-            checkScale.value = withTiming(0, { duration: 150 });
-        }
-    }, [completed]);
-
-    const scaleStyle  = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
-    const checkStyle  = useAnimatedStyle(() => ({ transform: [{ scale: checkScale.value }], opacity: checkScale.value > 0 ? 1 : 0, position: 'absolute' as const }));
-    const emptyStyle  = useAnimatedStyle(() => ({ opacity: interpolate(checkScale.value, [0, 1], [1, 0], Extrapolation.CLAMP) }));
+    if (!stop) return null;
+    const exercises = stop.exerciseIds.map(id => EXERCISES.find(e => e.id === id)).filter(Boolean) as Exercise[];
 
     return (
-        <Animated.View entering={FadeInLeft.delay(delay).duration(300)} style={scaleStyle}>
-            <TouchableOpacity
-                style={[s.card, completed && s.cardDone]}
-                onPress={onPress}
-                activeOpacity={0.82}
-                onPressIn={() => (scale.value = withSpring(0.97, { damping: 15 }))}
-                onPressOut={() => (scale.value = withSpring(1, { damping: 12 }))}
-            >
-                <View style={[s.cardAccent, { backgroundColor: color }]} />
-
-                {/* Check animado */}
-                <View style={s.cardCheck}>
-                    <Animated.View style={checkStyle}>
-                        <CheckCircle size={19} color="#10b981" strokeWidth={2.5} />
-                    </Animated.View>
-                    <Animated.View style={emptyStyle}>
-                        <Circle size={19} color="#2a2040" strokeWidth={2} />
-                    </Animated.View>
-                </View>
-
-                <View style={s.cardBody}>
-                    <Text style={[s.cardTitle, completed && s.cardTitleDone]} numberOfLines={1}>
-                        {exercise.title}
-                    </Text>
-                    <Text style={s.cardDesc} numberOfLines={1}>{exercise.description}</Text>
-                    <View style={s.cardFooter}>
-                        <View style={[s.diffChip, { backgroundColor: diffColor + '18', borderColor: diffColor + '40' }]}>
-                            <Text style={[s.diffChipText, { color: diffColor }]}>{exercise.difficulty}</Text>
+        <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+            <View style={sStyles.overlay}>
+                <Animated.View entering={FadeInDown.springify()} style={sStyles.card}>
+                    <View style={[sStyles.header, { borderBottomColor: stop.color + '30' }]}>
+                        <Text style={sStyles.icon}>{stop.icon}</Text>
+                        <View>
+                            <Text style={sStyles.title}>{stop.title}</Text>
+                            <Text style={sStyles.sub}>{stop.subtitle}</Text>
                         </View>
-                        <View style={s.xpRow}>
-                            <Star size={9} color="#f59e0b" strokeWidth={2} />
-                            <Text style={s.xpText}>{exercise.xp} XP</Text>
+                        <View style={[sStyles.xpBadge, { backgroundColor: stop.color + '20', borderColor: stop.color + '50' }]}>
+                            <Text style={[sStyles.xpText, { color: stop.color }]}>+{stop.xpReward} XP</Text>
                         </View>
                     </View>
-                </View>
-            </TouchableOpacity>
-        </Animated.View>
-    );
-}
 
-// ─── Category Header ──────────────────────────────────────────────────────────
-function CategoryHeader({ catId, completedInCat, total, delay }: {
-    catId: Category; completedInCat: number; total: number; delay: number;
-}) {
-    const meta   = CATEGORY_META.find(c => c.id === catId)!;
-    const barW   = useSharedValue(0);
-    const pct    = total > 0 ? completedInCat / total : 0;
-
-    useEffect(() => {
-        barW.value = withDelay(delay + 150, withSpring(Math.min(pct, 1), { damping: 16, stiffness: 80 }));
-    }, [pct]);
-
-    const barStyle = useAnimatedStyle(() => ({
-        width: `${Math.min(barW.value * 100, 100)}%` as any,
-    }));
-
-    return (
-        <Animated.View entering={FadeInDown.delay(delay).duration(320)} style={[s.catHeader, { borderColor: meta.color + '28' }]}>
-            <Text style={s.catEmoji}>{meta.emoji}</Text>
-            <View style={{ flex: 1 }}>
-                <Text style={[s.catLabel, { color: meta.color }]}>{meta.label}</Text>
-                <View style={s.catTrack}>
-                    <Animated.View style={[s.catFill, { backgroundColor: meta.color }, barStyle]} />
-                </View>
-            </View>
-            <Text style={[s.catCount, { color: meta.color }]}>{completedInCat}/{total}</Text>
-        </Animated.View>
-    );
-}
-
-// ─── Main Screen ───────────────────────────────────────────────────────────────
-type Filter = 'all' | 'pending' | 'done';
-
-export default function ExercisesScreen() {
-    const { user }  = useAuth();
-    const email     = user?.email ?? '';
-    const keys      = email ? getStorageKeys(email) : null;
-    const DONE_KEY  = keys ? `${keys.profile}_EXERCISES_DONE` : null;
-    const XP_KEY    = keys ? `${keys.profile}_EXERCISES_XP`   : null;
-
-    const [completed, setCompleted] = useState<Set<string>>(new Set());
-    const [filter,    setFilter]    = useState<Filter>('all');
-    const [catFilter, setCatFilter] = useState<Category | 'all'>('all');
-    const [selected,  setSelected]  = useState<Exercise | null>(null);
-    const [showModal, setShowModal] = useState(false);
-
-    const { transition: filterTransition, style: listStyle } = useFilterTransition();
-
-    useEffect(() => {
-        const load = async () => {
-            if (!DONE_KEY) return;
-            const raw = await AsyncStorage.getItem(DONE_KEY);
-            if (raw) setCompleted(new Set(JSON.parse(raw)));
-        };
-        load();
-    }, [DONE_KEY]);
-
-    const handleComplete = useCallback(async () => {
-        if (!selected || !DONE_KEY || !XP_KEY) return;
-        const updated = new Set(completed).add(selected.id);
-        const newXp   = [...updated].reduce((acc, id) => {
-            const ex = EXERCISES.find(e => e.id === id);
-            return acc + (ex?.xp ?? 0);
-        }, 0);
-        setCompleted(updated);
-        await AsyncStorage.setItem(DONE_KEY, JSON.stringify([...updated]));
-        await AsyncStorage.setItem(XP_KEY, String(newXp));
-    }, [selected, completed, DONE_KEY, XP_KEY]);
-
-    const totalXp = [...completed].reduce((acc, id) => {
-        const ex = EXERCISES.find(e => e.id === id);
-        return acc + (ex?.xp ?? 0);
-    }, 0);
-
-    const setFilterAnimated = (f: Filter) => filterTransition(() => setFilter(f));
-    const setCatAnimated    = (c: Category | 'all') => filterTransition(() => setCatFilter(c));
-
-    const filtered = EXERCISES.filter(ex => {
-        const catOk    = catFilter === 'all' || ex.category === catFilter;
-        const statusOk = filter === 'all' ? true : filter === 'done' ? completed.has(ex.id) : !completed.has(ex.id);
-        return catOk && statusOk;
-    });
-
-    const visibleCats = CATEGORY_META.filter(cat => filtered.some(ex => ex.category === cat.id));
-    const FILTER_LABELS: Record<Filter, string> = { all: 'Todos', pending: 'Pendentes', done: 'Concluídos' };
-
-    return (
-        <SafeAreaView style={s.container} edges={['top', 'left', 'right']}>
-
-            {/* Header estático simples */}
-            <Animated.View entering={FadeInDown.duration(350)} style={s.header}>
-                <View>
-                    <Text style={s.headerTitle}>Exercícios</Text>
-                    <Text style={s.headerSub}>{EXERCISES.length} desafios · {CATEGORY_META.length} categorias</Text>
-                </View>
-                <View style={s.headerXp}>
-                    <Zap size={12} color="#8b5cf6" strokeWidth={2} />
-                    <Text style={s.headerXpText}>{totalXp} XP</Text>
-                </View>
-            </Animated.View>
-
-            {/* Summary Bar */}
-            <SummaryBar completed={completed.size} total={EXERCISES.length} xp={totalXp} />
-
-            {/* Filtros status */}
-            <Animated.View entering={FadeInDown.delay(90).duration(300)} style={s.filterStatusRow}>
-                {(['all', 'pending', 'done'] as Filter[]).map(f => (
-                    <FilterPill
-                        key={f}
-                        label={FILTER_LABELS[f]}
-                        active={filter === f}
-                        onPress={() => setFilterAnimated(f)}
-                    />
-                ))}
-            </Animated.View>
-
-            {/* Filtros categoria */}
-            <Animated.View entering={FadeInDown.delay(120).duration(300)}>
-                <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={s.filterCatRow}
-                >
-                    <FilterPill label="Todas" active={catFilter === 'all'} onPress={() => setCatAnimated('all')} />
-                    {CATEGORY_META.map(cat => (
-                        <FilterPill
-                            key={cat.id}
-                            label={`${cat.emoji} ${cat.label}`}
-                            active={catFilter === cat.id}
-                            color={cat.color}
-                            onPress={() => setCatAnimated(catFilter === cat.id ? 'all' : cat.id as Category)}
-                        />
-                    ))}
-                </ScrollView>
-            </Animated.View>
-
-            {/* Lista */}
-            <Animated.ScrollView
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={s.scroll}
-            >
-                <Animated.View style={listStyle}>
-                    {visibleCats.map((cat, gi) => {
-                        const catExercises   = filtered.filter(ex => ex.category === cat.id);
-                        const completedInCat = catExercises.filter(ex => completed.has(ex.id)).length;
-
+                    {exercises.map((ex, i) => {
+                        const done = completedIds.has(ex.id);
                         return (
-                            <View key={cat.id} style={s.group}>
-                                <CategoryHeader
-                                    catId={cat.id}
-                                    completedInCat={completedInCat}
-                                    total={catExercises.length}
-                                    delay={gi * 35}
-                                />
-                                {catExercises.map((ex, i) => (
-                                    <ExerciseCard
-                                        key={ex.id}
-                                        exercise={ex}
-                                        completed={completed.has(ex.id)}
-                                        delay={gi * 35 + i * 28}
-                                        onPress={() => { setSelected(ex); setShowModal(true); }}
-                                    />
-                                ))}
-                            </View>
+                            <TouchableOpacity
+                                key={ex.id}
+                                style={[sStyles.exerciseRow, done && sStyles.exerciseRowDone]}
+                                onPress={() => onSelectExercise(ex)}
+                                activeOpacity={0.8}
+                            >
+                                <View style={[sStyles.exNum, done && { backgroundColor: stop.color }]}>
+                                    <Text style={sStyles.exNumText}>{done ? '✓' : i + 1}</Text>
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={[sStyles.exTitle, done && { color: '#6b6880' }]}>{ex.title}</Text>
+                                    <Text style={sStyles.exDesc} numberOfLines={1}>{ex.description}</Text>
+                                </View>
+                                <Text style={[sStyles.exXp, { color: stop.color }]}>+{ex.xp} XP</Text>
+                            </TouchableOpacity>
                         );
                     })}
 
-                    {filtered.length === 0 && (
-                        <Animated.View entering={FadeInDown.duration(280)} style={s.empty}>
-                            <BookOpen size={28} color="#2a2040" strokeWidth={1.5} style={{ marginBottom: 10 }} />
-                            <Text style={s.emptyText}>Nenhum exercício aqui.</Text>
-                        </Animated.View>
-                    )}
+                    <TouchableOpacity style={sStyles.closeBtn} onPress={onClose}>
+                        <Text style={sStyles.closeBtnText}>Fechar</Text>
+                    </TouchableOpacity>
                 </Animated.View>
-                <View style={{ height: 48 }} />
-            </Animated.ScrollView>
+            </View>
+        </Modal>
+    );
+}
 
-            <DetailModal
-                visible={showModal}
-                exercise={selected}
-                completed={selected ? completed.has(selected.id) : false}
-                onClose={() => setShowModal(false)}
-                onComplete={handleComplete}
+// ─── Main Screen ──────────────────────────────────────────────────────────────
+export default function ExercisesScreen() {
+    const { user } = useAuth();
+    const { lives, loseLife } = useLives();
+    const email = user?.email ?? 'guest';
+    const area = ((user?.studyArea as StudyArea) ?? 'fullstack');
+    const trail = getTrailForArea(area);
+
+    const storageKey = STORAGE_KEY_PREFIX + email;
+    const xpKey = XP_KEY_PREFIX + email;
+
+    const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
+    const [xp, setXp] = useState(0);
+    const [selectedStop, setSelectedStop] = useState<TrailStop | null>(null);
+    const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
+    const [showNoLives, setShowNoLives] = useState(false);
+    const [stopModalVisible, setStopModalVisible] = useState(false);
+    const [quizModalVisible, setQuizModalVisible] = useState(false);
+    const pendingExerciseRef = useRef<Exercise | null>(null);
+
+    // Carrega progresso salvo
+    useEffect(() => {
+        const load = async () => {
+            const [compRaw, xpRaw] = await Promise.all([
+                AsyncStorage.getItem(storageKey),
+                AsyncStorage.getItem(xpKey),
+            ]);
+            if (compRaw) setCompletedIds(new Set(JSON.parse(compRaw)));
+            if (xpRaw) setXp(parseInt(xpRaw, 10) || 0);
+        };
+        load();
+    }, [storageKey, xpKey]);
+
+    const getStopStatus = (stop: TrailStop, idx: number): StopStatus => {
+        const allDone = stop.exerciseIds.every(id => completedIds.has(id));
+        if (allDone) return 'completed';
+        if (idx === 0) return 'active';
+        // Desbloqueada se a parada anterior está concluída
+        const prevStop = trail.stops[idx - 1];
+        const prevDone = prevStop.exerciseIds.every(id => completedIds.has(id));
+        if (prevDone) return 'active';
+        return 'locked';
+    };
+
+    const handleStopPress = (stop: TrailStop) => {
+        setSelectedStop(stop);
+        setStopModalVisible(true);
+    };
+
+    const handleExerciseSelect = (ex: Exercise) => {
+        if (lives <= 0) {
+            pendingExerciseRef.current = ex;
+            setStopModalVisible(false);
+            setShowNoLives(true);
+            return;
+        }
+        setSelectedExercise(ex);
+        setQuizModalVisible(true);
+    };
+
+    const handleCorrect = useCallback(async (earnedXp: number) => {
+        if (!selectedExercise) return;
+        const newCompleted = new Set([...completedIds, selectedExercise.id]);
+        const newXp = xp + earnedXp;
+        setCompletedIds(newCompleted);
+        setXp(newXp);
+        await Promise.all([
+            AsyncStorage.setItem(storageKey, JSON.stringify([...newCompleted])),
+            AsyncStorage.setItem(xpKey, String(newXp)),
+        ]);
+    }, [selectedExercise, completedIds, xp, storageKey, xpKey]);
+
+    const handleWrong = useCallback(() => {
+        loseLife();
+    }, [loseLife]);
+
+    const handleLifeRestored = () => {
+        if (pendingExerciseRef.current) {
+            setSelectedExercise(pendingExerciseRef.current);
+            setQuizModalVisible(true);
+            pendingExerciseRef.current = null;
+        }
+    };
+
+    return (
+        <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+
+            {/* Header */}
+            <Animated.View entering={FadeIn.duration(400)} style={styles.header}>
+                <View>
+                    <Text style={styles.headerSub}>Sua trilha</Text>
+                    <Text style={styles.headerTitle}>{trail.label}</Text>
+                </View>
+                <LivesBar />
+            </Animated.View>
+
+            <ScrollView contentContainerStyle={styles.trail} showsVerticalScrollIndicator={false}>
+
+                {/* Fim da trilha */}
+                <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.trailEnd}>
+                    <Text style={styles.trailEndIcon}>🏆</Text>
+                    <Text style={styles.trailEndText}>Fim da Trilha</Text>
+                </Animated.View>
+
+                {/* Paradas (invertidas — do topo = última, embaixo = primeira) */}
+                {[...trail.stops].reverse().map((stop, i) => {
+                    const originalIdx = trail.stops.length - 1 - i;
+                    const status = getStopStatus(stop, originalIdx);
+                    const isLeft = i % 2 === 0;
+
+                    return (
+                        <Animated.View key={stop.id} entering={FadeInDown.delay(120 + i * 80).duration(400)}>
+                            <TrailNode
+                                stop={stop}
+                                status={status}
+                                onPress={() => handleStopPress(stop)}
+                                isLeft={isLeft}
+                            />
+                            {/* Linha conectora */}
+                            {i < trail.stops.length - 1 && (
+                                <View style={[styles.connector, isLeft ? styles.connectorLeft : styles.connectorRight]}>
+                                    {[...Array(4)].map((_, d) => (
+                                        <View key={d} style={[styles.connectorDot, { backgroundColor: status === 'completed' ? trail.color : '#2a2040' }]} />
+                                    ))}
+                                </View>
+                            )}
+                        </Animated.View>
+                    );
+                })}
+
+                {/* Início */}
+                <Animated.View entering={FadeInDown.delay(600).duration(400)} style={styles.trailStart}>
+                    <Text style={styles.trailStartIcon}>🚀</Text>
+                    <Text style={styles.trailStartText}>Início</Text>
+                </Animated.View>
+
+                <View style={{ height: 80 }} />
+            </ScrollView>
+
+            {/* Modais */}
+            <StopModal
+                stop={selectedStop}
+                visible={stopModalVisible}
+                onClose={() => setStopModalVisible(false)}
+                completedIds={completedIds}
+                onSelectExercise={(ex) => {
+                    setStopModalVisible(false);
+                    setTimeout(() => handleExerciseSelect(ex), 300);
+                }}
             />
+
+            <QuizModal
+                exercise={selectedExercise}
+                visible={quizModalVisible}
+                onClose={() => { setQuizModalVisible(false); setStopModalVisible(true); }}
+                onCorrect={handleCorrect}
+                onWrong={handleWrong}
+            />
+
+            <NoLivesModal
+                visible={showNoLives}
+                onClose={() => setShowNoLives(false)}
+                onLifeRestored={handleLifeRestored}
+            />
+
         </SafeAreaView>
     );
 }
 
-// ─── Styles ────────────────────────────────────────────────────────────────────
-const s = StyleSheet.create({
-    container:   { flex: 1, backgroundColor: '#0d0d10' },
-    scroll:      { paddingBottom: 24 },
+// ─── Styles ───────────────────────────────────────────────────────────────────
+const styles = StyleSheet.create({
+    container: { flex: 1, backgroundColor: '#0d0d10' },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 20,
+        paddingVertical: 14,
+        borderBottomWidth: 1,
+        borderBottomColor: '#1e1c2e',
+    },
+    headerSub: { color: '#6b6880', fontSize: 12, fontWeight: '600' },
+    headerTitle: { color: '#fff', fontSize: 18, fontWeight: '800' },
+    trail: { alignItems: 'center', paddingTop: 20 },
+    trailEnd: { alignItems: 'center', marginBottom: 16 },
+    trailEndIcon: { fontSize: 36 },
+    trailEndText: { color: '#FFD700', fontSize: 14, fontWeight: '800', marginTop: 4 },
+    trailStart: { alignItems: 'center', marginTop: 8 },
+    trailStartIcon: { fontSize: 32 },
+    trailStartText: { color: '#6b6880', fontSize: 13, fontWeight: '700', marginTop: 4 },
 
-    header:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 18, paddingBottom: 12 },
-    headerTitle: { color: '#fff', fontSize: 24, fontWeight: '900', letterSpacing: -0.5 },
-    headerSub:   { color: '#6b6880', fontSize: 12, marginTop: 2 },
-    headerXp:    { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#8b5cf618', borderWidth: 1, borderColor: '#8b5cf635', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5 },
-    headerXpText:{ color: '#8b5cf6', fontSize: 12, fontWeight: '700' },
+    nodeRow: { width: SW, alignItems: 'center', marginVertical: 4 },
+    nodeLeft: { alignItems: 'flex-start', paddingLeft: SW * 0.18 },
+    nodeRight: { alignItems: 'flex-end', paddingRight: SW * 0.18 },
 
-    summaryBar:     { flexDirection: 'row', backgroundColor: '#16151d', borderRadius: 14, marginHorizontal: 16, marginBottom: 14, padding: 12, borderWidth: 1, borderColor: '#2a2040' },
-    summaryItem:    { flex: 1, alignItems: 'center', gap: 3 },
-    summaryNum:     { color: '#fff', fontSize: 17, fontWeight: '900' },
-    summaryLabel:   { color: '#6b6880', fontSize: 10, fontWeight: '600' },
-    summaryDivider: { width: 1, backgroundColor: '#2a2040', marginVertical: 2 },
+    node: {
+        width: 72, height: 72, borderRadius: 36,
+        alignItems: 'center', justifyContent: 'center',
+        borderWidth: 2, borderColor: '#2a2040',
+        backgroundColor: '#16151d',
+    },
+    nodeIcon: { fontSize: 26 },
+    nodeLabel: { alignItems: 'center', marginTop: 6 },
+    nodeName: { color: '#d4d0e8', fontSize: 13, fontWeight: '700' },
+    nodeSub: { color: '#6b6880', fontSize: 11, marginTop: 2 },
+    pulseRing: {
+        position: 'absolute', width: 88, height: 88,
+        borderRadius: 44, borderWidth: 3,
+        top: -8, left: -8,
+    },
 
-    filterStatusRow:{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, gap: 6, marginBottom: 8 },
-    filterCatRow:   { paddingHorizontal: 16, paddingRight: 32, gap: 6, paddingBottom: 14 },
-    filterPill:     { paddingHorizontal: 13, paddingVertical: 7, borderRadius: 20, backgroundColor: '#16151d', borderWidth: 1, borderColor: '#2a2040' },
-    filterPillText: { color: '#6b6880', fontSize: 12, fontWeight: '600' },
+    connector: { height: 36, justifyContent: 'space-around', alignItems: 'center' },
+    connectorLeft: { alignSelf: 'flex-start', marginLeft: SW * 0.18 + 32 },
+    connectorRight: { alignSelf: 'flex-end', marginRight: SW * 0.18 + 32 },
+    connectorDot: { width: 5, height: 5, borderRadius: 2.5 },
+});
 
-    group:          { paddingHorizontal: 16, marginBottom: 6 },
+// ─── Quiz styles ──────────────────────────────────────────────────────────────
+const qStyles = StyleSheet.create({
+    overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'flex-end' },
+    card: {
+        backgroundColor: '#16151d', borderTopLeftRadius: 28, borderTopRightRadius: 28,
+        padding: 24, gap: 14, borderWidth: 1, borderColor: '#2a2040',
+        maxHeight: '90%',
+    },
+    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    category: { color: '#6b6880', fontSize: 11, fontWeight: '800', letterSpacing: 1 },
+    xp: { color: '#8b5cf6', fontSize: 14, fontWeight: '800' },
+    detail: { color: '#9aa0aa', fontSize: 13, lineHeight: 19 },
+    divider: { height: 1, backgroundColor: '#2a2040' },
+    question: { color: '#fff', fontSize: 16, fontWeight: '700', lineHeight: 22 },
+    option: {
+        flexDirection: 'row', alignItems: 'center', gap: 12,
+        backgroundColor: '#1e1c2e', borderRadius: 14, padding: 14,
+        borderWidth: 1, borderColor: '#2a2040',
+    },
+    optCorrect: { backgroundColor: '#10b98120', borderColor: '#10b981' },
+    optWrong: { backgroundColor: '#ef444420', borderColor: '#ef4444' },
+    optDim: { opacity: 0.4 },
+    optLetter: {
+        color: '#8b5cf6', fontSize: 13, fontWeight: '900',
+        width: 22, height: 22, borderRadius: 11,
+        backgroundColor: '#8b5cf620', textAlign: 'center', lineHeight: 22,
+    },
+    optText: { color: '#d4d0e8', fontSize: 14, flex: 1 },
+    explanation: {
+        flexDirection: 'row', gap: 10, padding: 14,
+        borderRadius: 14, alignItems: 'flex-start',
+    },
+    expCorrect: { backgroundColor: '#10b98115', borderWidth: 1, borderColor: '#10b98130' },
+    expWrong: { backgroundColor: '#ef444415', borderWidth: 1, borderColor: '#ef444430' },
+    expIcon: { fontSize: 18 },
+    expText: { fontSize: 13, lineHeight: 19, flex: 1 },
+    closeBtn: {
+        backgroundColor: '#8b5cf6', borderRadius: 16, padding: 16, alignItems: 'center',
+    },
+    closeBtnText: { color: '#fff', fontSize: 15, fontWeight: '800' },
+});
 
-    catHeader:      { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#16151d', borderRadius: 12, padding: 10, marginBottom: 8, marginTop: 4, borderWidth: 1 },
-    catEmoji:       { fontSize: 20, width: 28, textAlign: 'center' },
-    catLabel:       { fontSize: 13, fontWeight: '800', marginBottom: 4 },
-    catTrack:       { height: 4, backgroundColor: '#1a1826', borderRadius: 2, overflow: 'hidden' },
-    catFill:        { height: '100%', borderRadius: 2 },
-    catCount:       { fontSize: 13, fontWeight: '900' },
-
-    card:           { flexDirection: 'row', alignItems: 'center', backgroundColor: '#16151d', borderRadius: 12, marginBottom: 6, borderWidth: 1, borderColor: '#2a2040', overflow: 'hidden' },
-    cardDone:       { borderColor: '#10b98125', backgroundColor: '#0d1a16' },
-    cardAccent:     { width: 3, alignSelf: 'stretch' },
-    cardCheck:      { padding: 12, width: 44, alignItems: 'center', justifyContent: 'center' },
-    cardBody:       { flex: 1, paddingVertical: 11, paddingRight: 12, gap: 3 },
-    cardTitle:      { color: '#fff', fontSize: 13, fontWeight: '700' },
-    cardTitleDone:  { color: '#10b981', textDecorationLine: 'line-through', opacity: 0.75 },
-    cardDesc:       { color: '#7a7590', fontSize: 12 },
-    cardFooter:     { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 },
-    diffChip:       { borderWidth: 1, borderRadius: 20, paddingHorizontal: 7, paddingVertical: 2 },
-    diffChipText:   { fontSize: 10, fontWeight: '700' },
-    xpRow:          { flexDirection: 'row', alignItems: 'center', gap: 3 },
-    xpText:         { color: '#f59e0b', fontSize: 10, fontWeight: '700' },
-
-    empty:          { alignItems: 'center', paddingVertical: 60 },
-    emptyText:      { color: '#44415a', fontSize: 14 },
-
-    // Detail Modal
-    detailContainer: { flex: 1, backgroundColor: '#0d0d10' },
-    detailHeader:    { flexDirection: 'row', justifyContent: 'flex-end', padding: 14, paddingBottom: 6 },
-    closeBtn:        { backgroundColor: '#1e1c2e', borderRadius: 10, padding: 8, borderWidth: 1, borderColor: '#2a2040' },
-    detailBody:      { padding: 20, paddingBottom: 48 },
-    detailIconRow:   { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 },
-    detailIconWrap:  { width: 54, height: 54, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
-    donePill:        { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#10b98118', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: '#10b98140' },
-    donePillText:    { color: '#10b981', fontSize: 11, fontWeight: '700' },
-    detailTitle:     { color: '#fff', fontSize: 20, fontWeight: '900', marginBottom: 6, lineHeight: 26 },
-    detailDesc:      { color: '#9aa0aa', fontSize: 14, lineHeight: 21, marginBottom: 14 },
-    metaRow:         { flexDirection: 'row', gap: 7, marginBottom: 18, flexWrap: 'wrap' },
-    pill:            { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderRadius: 20, paddingHorizontal: 9, paddingVertical: 4 },
-    pillText:        { fontSize: 11, fontWeight: '700' },
-    detailCard:      { backgroundColor: '#16151d', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: '#2a2040', marginBottom: 12 },
-    detailCardLabelRow:{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
-    detailCardLabel: { color: '#44415a', fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.7 },
-    detailCardBody:  { color: '#d4d0e8', fontSize: 14, lineHeight: 23 },
-    exampleCard:     { borderColor: '#06b6d430' },
-    exampleText:     { color: '#d4d0e8', fontSize: 13, lineHeight: 21, fontFamily: 'monospace' },
-    hintCard:        { borderColor: '#f59e0b30' },
-    hintText:        { color: '#d4d0e8', fontSize: 13, lineHeight: 21 },
-    tagsRow:         { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 20 },
-    tag:             { backgroundColor: '#1a1826', borderRadius: 20, paddingHorizontal: 9, paddingVertical: 4, borderWidth: 1, borderColor: '#2a2040' },
-    tagText:         { color: '#6b6880', fontSize: 11 },
-    completeBtn:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 14, paddingVertical: 15, marginTop: 4 },
-    completeBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+// ─── Stop modal styles ────────────────────────────────────────────────────────
+const sStyles = StyleSheet.create({
+    overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'flex-end' },
+    card: {
+        backgroundColor: '#16151d', borderTopLeftRadius: 28, borderTopRightRadius: 28,
+        padding: 24, gap: 16, borderWidth: 1, borderColor: '#2a2040',
+    },
+    header: {
+        flexDirection: 'row', alignItems: 'center', gap: 14,
+        paddingBottom: 16, borderBottomWidth: 1,
+    },
+    icon: { fontSize: 28 },
+    title: { color: '#fff', fontSize: 17, fontWeight: '800' },
+    sub: { color: '#7a7590', fontSize: 13 },
+    xpBadge: { marginLeft: 'auto', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1 },
+    xpText: { fontSize: 13, fontWeight: '800' },
+    exerciseRow: {
+        flexDirection: 'row', alignItems: 'center', gap: 14,
+        padding: 14, borderRadius: 16,
+        backgroundColor: '#1e1c2e', borderWidth: 1, borderColor: '#2a2040',
+    },
+    exerciseRowDone: { opacity: 0.6 },
+    exNum: {
+        width: 32, height: 32, borderRadius: 16,
+        backgroundColor: '#2a2040', alignItems: 'center', justifyContent: 'center',
+    },
+    exNumText: { color: '#fff', fontSize: 13, fontWeight: '800' },
+    exTitle: { color: '#d4d0e8', fontSize: 14, fontWeight: '700' },
+    exDesc: { color: '#6b6880', fontSize: 12, marginTop: 2 },
+    exXp: { fontSize: 13, fontWeight: '700' },
+    closeBtn: {
+        backgroundColor: '#1e1c2e', borderRadius: 16, padding: 14, alignItems: 'center',
+        borderWidth: 1, borderColor: '#2a2040',
+    },
+    closeBtnText: { color: '#6b6880', fontSize: 14, fontWeight: '600' },
 });

@@ -2,7 +2,7 @@
 // Config centralizada das áreas de estudo. Em vez de redefinir ícone/cor
 // em cada tela individualmente, importo daqui — mudou aqui, mudou em todo lugar.
 
-import { Code2, Server, Layers } from 'lucide-react-native';
+import { Code2, Server, Layers, Smartphone, Settings } from 'lucide-react-native';
 import type { StudyArea } from '../services/ai.service';
 
 export interface AreaConfig {
@@ -37,6 +37,20 @@ export const AREA_CONFIG: Record<StudyArea, AreaConfig> = {
         color: '#8b5cf6',
         bg:    '#8b5cf612',
         desc:  'Full stack dev',
+    },
+    mobile: {
+        label: 'Mobile',
+        Icon:  Smartphone,
+        color: '#f59e0b',
+        bg:    '#f59e0b12',
+        desc:  'React Native · Expo',
+    },
+    devops: {
+        label: 'DevOps',
+        Icon:  Settings,
+        color: '#e879f9',
+        bg:    '#e879f912',
+        desc:  'CI/CD · Docker · Cloud',
     },
 };
 

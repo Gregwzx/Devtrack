@@ -37,7 +37,14 @@ public class User {
     private String bannerColor;
 
     @Column(columnDefinition = "VARCHAR(50) DEFAULT 'fullstack'")
-    private String studyArea; // frontend | backend | fullstack
+    private String studyArea; // frontend | backend | fullstack | mobile | devops
+
+    // sistema de vidas estilo Duolingo — padrão 5, regenera 1 a cada 30 min
+    @Column(columnDefinition = "INT DEFAULT 5")
+    private int lives = 5;
+
+    // timestamp da última vez que as vidas foram recarregadas
+    private LocalDateTime livesLastRefill;
 
     @CreationTimestamp // Hibernate preenche na criação
     private LocalDateTime createdAt;

@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     ScrollView, StyleSheet, View, Text, TouchableOpacity,
-    Image, TextInput, Modal, Pressable, Alert, Linking,
+    TextInput, Modal, Pressable, Alert, Linking,
     ActivityIndicator, Dimensions, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -13,12 +13,11 @@ import Animated, {
     Extrapolation,
 } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as ImagePicker from 'expo-image-picker';
 import {
-    LogOut, Edit2, Link, Image as ImageIcon, Flame, BookOpen,
-    Plus, X, Check, Save,
+    LogOut, Edit2, Link,
+    Flame, BookOpen, Plus, X, Check, Save,
     RefreshCw, Trophy, Zap, Star, TrendingUp,
-    Calendar, Award, ChevronRight, Clock, Camera,
+    Calendar, Award, ChevronRight, Clock, ShoppingBag,
 } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { signOutUser } from '../services/authService';
@@ -26,6 +25,10 @@ import { getUserData, saveProfile, getStorageKeys } from '../services/userServic
 import { AREA_CONFIG } from '../constants/areas';
 import { formatAgo } from '../../utils/dateHelpers';
 import type { StudyArea } from '../services/ai.service';
+import AvatarDisplay from '../components/avatar/AvatarDisplay';
+import AvatarShop from '../components/avatar/AvatarShop';
+import type { CosmeticType, CosmeticItem } from '../data/avatars';
+import { getAvatarLevel, getNextLevel, AVATAR_LEVELS } from '../data/avatars';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -34,13 +37,16 @@ interface SocialLink   { id: string; label: string; url: string; }
 interface LearningItem { id: string; text: string; date: string; }
 interface LocalProfile {
     bio: string;
-    photoURL: string | null; // URL remota (Firebase Storage) ou local temporária
     bannerColor: string;
     links: SocialLink[];
+    equippedHat: string | null;
+    equippedBadge: string | null;
+    equippedBackground: string | null;
 }
 
 const DEFAULT_LOCAL: LocalProfile = {
-    bio: '', photoURL: null, bannerColor: '#1a1040', links: [],
+    bio: '', bannerColor: '#1a1040', links: [],
+    equippedHat: null, equippedBadge: null, equippedBackground: null,
 };
 
 const BANNER_COLORS = [
@@ -206,60 +212,18 @@ function AnimatedBar({ label, value, max, color, delay }: {
 function EditModal({ visible, profile, onSave, onClose, saving }: {
     visible: boolean;
     profile: LocalProfile;
-    onSave: (p: LocalProfile, localPhotoUri?: string) => Promise<void>;
+    onSave: (p: LocalProfile) => Promise<void>;
     onClose: () => void;
     saving: boolean;
 }) {
-    const [draft, setDraft]           = useState<LocalProfile>(profile);
-    const [localPhotoUri, setLocalPhotoUri] = useState<string | undefined>(undefined);
-    const [newLabel, setNewLabel]     = useState('');
-    const [newUrl, setNewUrl]         = useState('');
-    const [tab, setTab]               = useState<'bio' | 'links' | 'banner'>('bio');
+    const [draft, setDraft]       = useState<LocalProfile>(profile);
+    const [newLabel, setNewLabel] = useState('');
+    const [newUrl, setNewUrl]     = useState('');
+    const [tab, setTab]           = useState<'bio' | 'links' | 'banner'>('bio');
 
     useEffect(() => {
-        if (visible) {
-            setDraft(profile);
-            setLocalPhotoUri(undefined);
-            setTab('bio');
-        }
+        if (visible) { setDraft(profile); setTab('bio'); }
     }, [profile, visible]);
-
-    const pickAvatar = async () => {
-        const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (!perm.granted) {
-            Alert.alert('Permissão necessária', 'Permita o acesso à galeria para trocar a foto.');
-            return;
-        }
-        const r = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
-            aspect: [1, 1],
-            quality: 0.8,
-        });
-        if (!r.canceled) {
-            const uri = r.assets[0].uri;
-            setLocalPhotoUri(uri);
-            setDraft(d => ({ ...d, photoURL: uri })); // preview local
-        }
-    };
-
-    const takePhoto = async () => {
-        const perm = await ImagePicker.requestCameraPermissionsAsync();
-        if (!perm.granted) {
-            Alert.alert('Permissão necessária', 'Permita o acesso à câmera para tirar uma foto.');
-            return;
-        }
-        const r = await ImagePicker.launchCameraAsync({
-            allowsEditing: true,
-            aspect: [1, 1],
-            quality: 0.8,
-        });
-        if (!r.canceled) {
-            const uri = r.assets[0].uri;
-            setLocalPhotoUri(uri);
-            setDraft(d => ({ ...d, photoURL: uri }));
-        }
-    };
 
     const addLink = () => {
         if (!newLabel.trim() || !newUrl.trim()) return;
@@ -269,9 +233,9 @@ function EditModal({ visible, profile, onSave, onClose, saving }: {
     };
 
     const TABS = [
-        { key: 'bio'    as const, label: 'Perfil'  },
-        { key: 'links'  as const, label: 'Links'   },
-        { key: 'banner' as const, label: 'Visual'  },
+        { key: 'bio'    as const, label: 'Bio'    },
+        { key: 'links'  as const, label: 'Links'  },
+        { key: 'banner' as const, label: 'Visual' },
     ];
 
     return (
@@ -282,11 +246,7 @@ function EditModal({ visible, profile, onSave, onClose, saving }: {
                         <Text style={editStyles.cancel}>Cancelar</Text>
                     </TouchableOpacity>
                     <Text style={editStyles.title}>Editar Perfil</Text>
-                    <TouchableOpacity
-                        onPress={() => onSave(draft, localPhotoUri)}
-                        disabled={saving}
-                        style={editStyles.saveBtn}
-                    >
+                    <TouchableOpacity onPress={() => onSave(draft)} disabled={saving} style={editStyles.saveBtn}>
                         {saving
                             ? <ActivityIndicator size="small" color="#8b5cf6" />
                             : <><Save size={14} color="#8b5cf6" strokeWidth={2.5} /><Text style={editStyles.save}>Salvar</Text></>
@@ -311,33 +271,6 @@ function EditModal({ visible, profile, onSave, onClose, saving }: {
                 <ScrollView contentContainerStyle={editStyles.body} keyboardShouldPersistTaps="handled">
                     {tab === 'bio' && (
                         <>
-                            {/* Avatar picker */}
-                            <View style={editStyles.avatarSection}>
-                                <View style={editStyles.avatarWrap}>
-                                    {draft.photoURL
-                                        ? <Image source={{ uri: draft.photoURL }} style={editStyles.avatarPreview} />
-                                        : <View style={editStyles.avatarPlaceholder}>
-                                            <ImageIcon size={28} color="#7a7590" strokeWidth={1.5} />
-                                          </View>
-                                    }
-                                </View>
-                                <View style={editStyles.avatarBtns}>
-                                    <TouchableOpacity style={editStyles.photoBtn} onPress={pickAvatar}>
-                                        <ImageIcon size={14} color="#8b5cf6" strokeWidth={2} />
-                                        <Text style={editStyles.photoBtnText}>Galeria</Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity style={editStyles.photoBtn} onPress={takePhoto}>
-                                        <Camera size={14} color="#8b5cf6" strokeWidth={2} />
-                                        <Text style={editStyles.photoBtnText}>Câmera</Text>
-                                    </TouchableOpacity>
-                                </View>
-                                {localPhotoUri && (
-                                    <Text style={editStyles.uploadHint}>
-                                        📤 A foto será enviada ao salvar
-                                    </Text>
-                                )}
-                            </View>
-
                             <Text style={editStyles.label}>Bio</Text>
                             <TextInput
                                 style={[editStyles.input, { minHeight: 90, textAlignVertical: 'top' }]}
@@ -417,13 +350,24 @@ export default function ProfileScreen() {
     const [loading, setLoading]         = useState(true);
     const [loadError, setLoadError]     = useState(false);
     const [expanded, setExpanded]       = useState(false);
+    const [shopVisible, setShopVisible] = useState(false);
+    const [totalXp, setTotalXp]         = useState(0);
 
     const displayName   = user?.name ?? 'Dev';
-    const initials      = displayName.split(' ').slice(0,2).map((n: string) => n[0]).join('').toUpperCase();
     const areaConfig    = AREA_CONFIG[studyArea];
     const badges        = computeBadges(streak, learnings.length);
     const unlockedCount = badges.filter(b => b.unlocked).length;
     const shownLearnings = expanded ? learnings.slice(0,10) : learnings.slice(0,3);
+    const avatarLevel   = getAvatarLevel(totalXp);
+    const nextLevel     = getNextLevel(totalXp);
+    const xpToNext      = nextLevel ? nextLevel.minXp - totalXp : 0;
+    const xpProgress    = nextLevel
+        ? (totalXp - avatarLevel.minXp) / (nextLevel.minXp - avatarLevel.minXp)
+        : 1;
+    const unlockedAchievements: string[] = [
+        ...(learnings.length >= 1 ? ['first_learning'] : []),
+        ...(streak >= 7 ? ['streak_7'] : []),
+    ];
 
     // Usa chaves baseadas no email — dados isolados por conta
     const keys = email ? getStorageKeys(email) : null;
@@ -432,67 +376,51 @@ export default function ProfileScreen() {
         if (!keys) return;
         setLoading(true); setLoadError(false);
         try {
-            const [profRaw, streakRaw, learnRaw, areaRaw] = await Promise.all([
+            const [profRaw, streakRaw, learnRaw, areaRaw, xpRaw] = await Promise.all([
                 AsyncStorage.getItem(keys.profile),
                 AsyncStorage.getItem(keys.streak),
                 AsyncStorage.getItem(keys.learnings),
                 AsyncStorage.getItem(keys.area),
+                AsyncStorage.getItem('DEVTRACK_XP_' + email),
             ]);
 
             if (profRaw)   setLocal(JSON.parse(profRaw));
             if (streakRaw) setStreak(JSON.parse(streakRaw).count ?? 0);
             if (learnRaw)  setLearnings(JSON.parse(learnRaw));
             if (areaRaw)   setStudyArea(areaRaw as StudyArea);
-
-            // Tenta sincronizar com o backend
-            if (user?.id) {
-                const remote = await getUserData(user.id, email);
-                if (remote) {
-                    setLocal(prev => ({
-                        ...prev,
-                        bio:      prev.bio      || remote.bio      || '',
-                        photoURL: prev.photoURL || remote.photoURL || null,
-                        links:    prev.links.length ? prev.links : (remote.links ?? []),
-                        bannerColor: prev.bannerColor !== '#1a1040' ? prev.bannerColor : (remote.bannerColor ?? '#1a1040'),
-                    }));
-                    if (remote.streak > 0)            setStreak(remote.streak);
-                    if (remote.learnings?.length > 0) setLearnings(remote.learnings);
-                    if (remote.studyArea)             setStudyArea(remote.studyArea);
-                }
-            }
+            if (xpRaw)     setTotalXp(parseInt(xpRaw, 10) || 0);
         } catch { setLoadError(true); }
         finally  { setLoading(false); }
     }, [user?.id, email]);
 
     useEffect(() => { loadData(); }, [loadData]);
 
-    const handleSave = async (p: LocalProfile, localPhotoUri?: string) => {
-        if (!user?.id || !keys) return;
+    const handleSave = async (p: LocalProfile) => {
+        if (!keys) return;
         setSaving(true);
         try {
-            const finalPhotoURL = await saveProfile(user.id, email, {
-                bio:         p.bio,
-                photoURL:    p.photoURL,
-                bannerColor: p.bannerColor,
-                links:       p.links,
-                localPhotoUri,
-            });
-
-            const updated: LocalProfile = {
-                ...p,
-                photoURL: finalPhotoURL ?? p.photoURL,
-            };
-
-            // Persiste local com chave do email
-            await AsyncStorage.setItem(keys.profile, JSON.stringify(updated));
-            setLocal(updated);
+            await AsyncStorage.setItem(keys.profile, JSON.stringify(p));
+            setLocal(p);
             setEditVisible(false);
         } catch (err) {
-            console.error(err);
             Alert.alert('Erro', 'Não foi possível salvar o perfil.');
         } finally {
             setSaving(false);
         }
+    };
+
+    const handleEquip = async (item: CosmeticItem) => {
+        const key = `equipped${item.type.charAt(0).toUpperCase() + item.type.slice(1)}` as keyof LocalProfile;
+        const updated = { ...local, [key]: item.id };
+        setLocal(updated);
+        if (keys) await AsyncStorage.setItem(keys.profile, JSON.stringify(updated));
+    };
+
+    const handleUnequip = async (type: CosmeticType) => {
+        const key = `equipped${type.charAt(0).toUpperCase() + type.slice(1)}` as keyof LocalProfile;
+        const updated = { ...local, [key]: null };
+        setLocal(updated);
+        if (keys) await AsyncStorage.setItem(keys.profile, JSON.stringify(updated));
     };
 
     const handleLogout = () => {
@@ -537,12 +465,14 @@ export default function ProfileScreen() {
                 {/* Avatar row */}
                 <View style={styles.avatarRow}>
                     <Animated.View entering={FadeInLeft.delay(80).duration(500).springify()} style={styles.avatarWrap}>
-                        {local.photoURL
-                            ? <Image source={{ uri: local.photoURL }} style={styles.avatar} />
-                            : <View style={styles.avatarFallback}>
-                                <Text style={styles.avatarInitials}>{initials}</Text>
-                              </View>
-                        }
+                        {/* Avatar evoluível por XP */}
+                        <AvatarDisplay
+                            xp={totalXp}
+                            size={86}
+                            equippedHat={local.equippedHat ?? undefined}
+                            equippedBadge={local.equippedBadge ?? undefined}
+                            equippedBackground={local.equippedBackground ?? undefined}
+                        />
                         <View style={styles.streakBadge}>
                             <Flame size={10} color="#fff" strokeWidth={2} />
                             <Text style={styles.streakBadgeTxt}>{streak}</Text>
@@ -555,6 +485,9 @@ export default function ProfileScreen() {
                                 <RefreshCw size={15} color="#f87171" strokeWidth={2} />
                             </TouchableOpacity>
                         )}
+                        <TouchableOpacity style={styles.iconBtn} onPress={() => setShopVisible(true)}>
+                            <ShoppingBag size={16} color="#8b5cf6" strokeWidth={2} />
+                        </TouchableOpacity>
                         <TouchableOpacity style={styles.iconBtn} onPress={() => setEditVisible(true)}>
                             <Edit2 size={16} color="#fff" strokeWidth={2} />
                         </TouchableOpacity>
@@ -584,8 +517,8 @@ export default function ProfileScreen() {
                 <View style={styles.statsGrid}>
                     {[
                         { label: 'Streak',     value: streak,           Icon: Flame,    color: '#8b5cf6', suffix: 'd', delay: 140 },
-                        { label: 'Registros',  value: learnings.length, Icon: BookOpen, color: '#06b6d4', suffix: '',  delay: 200 },
-                        { label: 'Conquistas', value: unlockedCount,    Icon: Trophy,   color: '#f59e0b', suffix: '',  delay: 260 },
+                        { label: 'XP Total',   value: totalXp,          Icon: Zap,      color: '#f59e0b', suffix: '',  delay: 200 },
+                        { label: 'Conquistas', value: unlockedCount,    Icon: Trophy,   color: '#06b6d4', suffix: '',  delay: 260 },
                     ].map((s, i) => (
                         <Animated.View key={i} entering={FadeInDown.delay(s.delay).duration(400).springify()} style={styles.statCard}>
                             <s.Icon size={16} color={s.color} strokeWidth={2} style={{ marginBottom: 6 }} />
@@ -719,6 +652,23 @@ export default function ProfileScreen() {
                 onSave={handleSave}
                 onClose={() => setEditVisible(false)}
                 saving={saving}
+            />
+
+            <AvatarShop
+                visible={shopVisible}
+                onClose={() => setShopVisible(false)}
+                xp={totalXp}
+                unlockedAchievements={unlockedAchievements}
+                equippedItems={{
+                    hat: local.equippedHat ?? null,
+                    badge: local.equippedBadge ?? null,
+                    background: local.equippedBackground ?? null,
+                    pose: null,
+                    outfit: null,
+                    accessory: null,
+                }}
+                onEquip={handleEquip}
+                onUnequip={handleUnequip}
             />
         </SafeAreaView>
     );

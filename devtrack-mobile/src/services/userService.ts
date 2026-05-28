@@ -164,9 +164,8 @@ export async function saveProfile(
         const stored = await getStoredUser();
         if (stored) {
             const updated = { ...stored, ...profile, photoUrl: finalPhotoURL };
-            const access  = await api.getAccessToken() ?? '';
-            const refresh = await api.getRefreshToken() ?? '';
-            await saveTokens(access, refresh, updated);
+            const refresh = await getRefreshToken() ?? '';
+            await saveTokens('', refresh, updated);
         }
     } catch (e) {
         console.warn('[userService] Erro ao salvar perfil na API:', e);

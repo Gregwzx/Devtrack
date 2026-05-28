@@ -26,6 +26,7 @@ public class UserDTO {
     private String bannerColor;
     private int streak;
     private String streakLastDate; // formato yyyy-MM-dd
+    private int lives;             // 0–5 — sistema de vidas estilo Duolingo
 
     // método estático que converte a entidade User pra esse DTO
     // aqui inclui a streak junto, aproveitando o relacionamento carregado
@@ -50,6 +51,7 @@ public class UserDTO {
                 .bannerColor(user.getBannerColor())
                 .streak(streakCount)
                 .streakLastDate(streakLastDate)
+                .lives(user.getLives())
                 .build();
     }
 }

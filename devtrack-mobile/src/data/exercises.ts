@@ -15,7 +15,14 @@ export interface Exercise {
     difficulty: Difficulty;
     category: Category;
     xp: number;
+    quiz: {
+        question: string;      // pergunta conceitual sobre o tema
+        options: string[];     // 4 opções de resposta
+        correctIndex: number;  // índice da resposta correta (0–3)
+        explanation: string;   // explicação mostrada após responder
+    };
 }
+
 
 export interface CategoryMeta {
     id: Category;
@@ -57,6 +64,12 @@ export const EXERCISES: Exercise[] = [
         difficulty: 'iniciante',
         category: 'logica',
         xp: 20,
+        quiz: {
+            question: 'No FizzBuzz, qual condição DEVE ser verificada primeiro?',
+            options: ['Checar se é múltiplo de 3', 'Checar se é múltiplo de 5', 'Checar se é múltiplo de 15 (FizzBuzz)', 'Qualquer ordem funciona'],
+            correctIndex: 2,
+            explanation: 'Múltiplo de 15 deve vir primeiro — se checar 3 antes, múltiplos de 15 seriam "Fizz" em vez de "FizzBuzz".',
+        },
     },
     {
         id: 'l2',
@@ -74,6 +87,12 @@ export const EXERCISES: Exercise[] = [
         difficulty: 'iniciante',
         category: 'logica',
         xp: 15,
+        quiz: {
+            question: 'Qual combinação de métodos inverte uma string em JavaScript?',
+            options: ['.reverse()', '.split("").reverse().join("")', '.charAt(0)', '.substring(1)'],
+            correctIndex: 1,
+            explanation: 'Strings não têm .reverse(). O padrão é split("") para virar array, reverse() no array, e join("") para juntar de volta.',
+        },
     },
     {
         id: 'l3',
@@ -89,6 +108,12 @@ export const EXERCISES: Exercise[] = [
         difficulty: 'iniciante',
         category: 'logica',
         xp: 15,
+        quiz: {
+            question: 'Qual operador identifica se um número é PAR?',
+            options: ['número / 2 === 0', 'número % 2 === 0', 'número & 2 === 0', 'número ** 2 === 0'],
+            correctIndex: 1,
+            explanation: 'O operador módulo (%) retorna o resto da divisão. Se número % 2 === 0, o resto é zero, portanto é par.',
+        },
     },
     {
         id: 'l4',
@@ -107,6 +132,12 @@ export const EXERCISES: Exercise[] = [
         difficulty: 'iniciante',
         category: 'logica',
         xp: 25,
+        quiz: {
+            question: '"arara" é um palíndromo?',
+            options: ['Sim, pois lido ao contrário é "arara"', 'Não, pois tem letras repetidas', 'Só se ignorarmos acentos', 'Depende da linguagem'],
+            correctIndex: 0,
+            explanation: '"arara" invertido é "arara" — portanto é um palíndromo clássico do português!',
+        },
     },
     {
         id: 'l5',
@@ -126,6 +157,12 @@ export const EXERCISES: Exercise[] = [
         difficulty: 'intermediário',
         category: 'logica',
         xp: 40,
+        quiz: {
+            question: 'Qual é o 6º número da sequência de Fibonacci? (começando em 0)',
+            options: ['5', '8', '13', '7'],
+            correctIndex: 1,
+            explanation: 'Sequência: 0, 1, 1, 2, 3, 5, 8... O 6º elemento (índice 6) é 8.',
+        },
     },
     {
         id: 'l6',
@@ -144,6 +181,12 @@ export const EXERCISES: Exercise[] = [
         difficulty: 'intermediário',
         category: 'logica',
         xp: 50,
+        quiz: {
+            question: 'A busca binária funciona em qual tipo de array?',
+            options: ['Qualquer array', 'Arrays com números pares', 'Arrays ordenados', 'Arrays com tamanho par'],
+            correctIndex: 2,
+            explanation: 'A busca binária exige que o array esteja ordenado — ela divide ao meio e decide qual metade explorar com base na comparação.',
+        },
     },
 
     // ── FRONTEND ──────────────────────────────────────────────────────────────
@@ -151,78 +194,73 @@ export const EXERCISES: Exercise[] = [
         id: 'f1',
         title: 'Contador com useState',
         description: 'Crie um contador com botões de incrementar, decrementar e resetar.',
-        detail:
-            'Construa um componente React `Counter` que:\n\n' +
-            '• Exiba o valor atual do contador\n' +
-            '• Tenha botões: +1, -1 e Reset\n' +
-            '• Não permita valores negativos (mínimo: 0)\n' +
-            '• Mude a cor do número conforme o valor (0 = cinza, >0 = verde, máximo atingido = vermelho)\n\n' +
-            'Desafio extra: adicione um input para definir o valor máximo.',
+        detail: 'Construa um componente React `Counter` com botões +1, -1 e Reset. Não permita valores negativos.',
         hint: 'Use useState para o valor e Math.max(0, count - 1) para evitar negativos.',
-        example: 'Estado inicial: 0 → clicar +1 três vezes → exibe 3 (em verde)',
+        example: 'Estado inicial: 0 → clicar +1 três vezes → exibe 3',
         tags: ['react', 'useState', 'componentes'],
         difficulty: 'iniciante',
         category: 'frontend',
         xp: 20,
+        quiz: {
+            question: 'Qual hook é usado para gerenciar estado local em React?',
+            options: ['useEffect', 'useState', 'useContext', 'useRef'],
+            correctIndex: 1,
+            explanation: 'useState é o hook para estado local — retorna [valor, setValor] e re-renderiza o componente ao mudar.',
+        },
     },
     {
         id: 'f2',
         title: 'Filtro de Lista',
         description: 'Filtre uma lista de itens em tempo real conforme o usuário digita.',
-        detail:
-            'Crie um componente com:\n\n' +
-            '• Um array de pelo menos 10 tecnologias (React, Node, Python, etc.)\n' +
-            '• Um input de busca\n' +
-            '• A lista filtrada em tempo real conforme a digitação\n' +
-            '• Mensagem "Nenhum resultado" quando não há correspondência\n' +
-            '• Highlight do texto correspondente na busca (opcional)\n\n' +
-            'Use useMemo para evitar recalcular o filtro a cada render.',
+        detail: 'Crie um componente com input de busca e lista filtrada em tempo real. Use useMemo para evitar recalcular a cada render.',
         hint: 'filter + includes + toLowerCase() formam a base. useMemo([searchTerm]) evita renders extras.',
         example: 'Digitando "re" → aparece "React", "React Native", "Prettier"',
-        tags: ['react', 'useMemo', 'filtro', 'UX'],
+        tags: ['react', 'useMemo', 'filtro'],
         difficulty: 'iniciante',
         category: 'frontend',
         xp: 25,
+        quiz: {
+            question: 'Qual hook evita recálculos desnecessários em uma lista filtrada?',
+            options: ['useCallback', 'useEffect', 'useMemo', 'useState'],
+            correctIndex: 2,
+            explanation: 'useMemo memoriza o resultado de uma computação cara e só recalcula quando as dependências mudam.',
+        },
     },
     {
         id: 'f3',
         title: 'Dark Mode Toggle',
         description: 'Implemente alternância de tema claro/escuro com Context API.',
-        detail:
-            'Crie um sistema de tema com:\n\n' +
-            '1. Um `ThemeContext` com React Context API\n' +
-            '2. Um provider que guarda o estado do tema\n' +
-            '3. Um botão de toggle em qualquer lugar da árvore\n' +
-            '4. Pelo menos 3 componentes consumindo o tema\n' +
-            '5. Persista o tema escolhido no localStorage (ou AsyncStorage no RN)\n\n' +
-            'Dica: use um objeto de tokens de design {background, text, primary} para cada tema.',
+        detail: 'Crie um ThemeContext com React Context API, provider com estado do tema e pelo menos 3 componentes consumindo.',
         hint: 'useContext + createContext + um custom hook useTheme() tornam o consumo limpo.',
-        example: 'Clicar no ☀️/🌙 alterna o tema em toda a aplicação instantaneamente.',
+        example: 'Clicar no ☀️/🌙 alterna o tema em toda a aplicação.',
         tags: ['context', 'tema', 'estado global'],
         difficulty: 'intermediário',
         category: 'frontend',
         xp: 45,
+        quiz: {
+            question: 'O que o React Context API resolve?',
+            options: ['Animações entre telas', 'Prop drilling — passar dados sem props manuais', 'Chamadas de API', 'Gerenciamento de rotas'],
+            correctIndex: 1,
+            explanation: 'Context API resolve prop drilling: compartilha dados globalmente sem precisar passar props em cada nível da árvore.',
+        },
     },
     {
         id: 'f4',
         title: 'Validação de Formulário',
         description: 'Construa um formulário com validação completa sem biblioteca externa.',
-        detail:
-            'Crie um formulário de cadastro com os campos:\n' +
-            '• Nome (obrigatório, mín. 3 caracteres)\n' +
-            '• E-mail (obrigatório, formato válido)\n' +
-            '• Senha (obrigatória, mín. 8 chars, 1 número, 1 maiúscula)\n' +
-            '• Confirmar senha (deve ser igual à senha)\n\n' +
-            'Requisitos:\n' +
-            '• Erros aparecem apenas após o campo ser tocado (onBlur)\n' +
-            '• O botão de submit fica desabilitado se houver erros\n' +
-            '• Indicador visual de força da senha',
+        detail: 'Formulário de cadastro com nome, e-mail, senha e confirmar senha. Erros aparecem após onBlur.',
         hint: 'Crie um estado separado para erros e outro para "campos tocados". Valide no onBlur.',
         example: 'Ao sair do campo e-mail com "joao" → aparece "E-mail inválido"',
         tags: ['formulários', 'validação', 'UX'],
         difficulty: 'intermediário',
         category: 'frontend',
         xp: 50,
+        quiz: {
+            question: 'Quando é ideal mostrar erros de validação num formulário?',
+            options: ['Ao carregar a página', 'Ao digitar cada caractere', 'Após o usuário sair do campo (onBlur)', 'Apenas no submit'],
+            correctIndex: 2,
+            explanation: 'onBlur é o padrão de UX — mostrar erro só depois que o usuário interagiu com o campo evita frustração prematura.',
+        },
     },
 
     // ── BACKEND ───────────────────────────────────────────────────────────────
@@ -230,81 +268,73 @@ export const EXERCISES: Exercise[] = [
         id: 'b1',
         title: 'Servidor Express Básico',
         description: 'Crie um servidor Node.js com Express com 3 rotas funcionais.',
-        detail:
-            'Configure um servidor Express com as seguintes rotas:\n\n' +
-            '• GET /         → {"message": "API funcionando!"}\n' +
-            '• GET /users    → retorna array de usuários mockados\n' +
-            '• GET /users/:id → retorna um usuário pelo id ou 404\n\n' +
-            'Requisitos:\n' +
-            '• Use nodemon para auto-reload\n' +
-            '• Configure CORS para aceitar qualquer origem\n' +
-            '• Trate o caso de id inexistente com status 404',
+        detail: 'Configure um servidor Express com GET /, GET /users e GET /users/:id. Trate 404 para id inexistente.',
         hint: 'app.use(express.json()) e app.use(cors()) devem vir antes das rotas.',
         example: 'GET /users/99 → status 404, {"error": "Usuário não encontrado"}',
-        tags: ['node', 'express', 'http', 'rest'],
+        tags: ['node', 'express', 'rest'],
         difficulty: 'iniciante',
         category: 'backend',
         xp: 30,
+        quiz: {
+            question: 'Qual método HTTP é usado para BUSCAR dados sem modificar nada?',
+            options: ['POST', 'PUT', 'GET', 'DELETE'],
+            correctIndex: 2,
+            explanation: 'GET é o método de leitura — idempotente e seguro. Nunca deve modificar estado no servidor.',
+        },
     },
     {
         id: 'b2',
         title: 'CRUD Completo em Memória',
         description: 'Implemente todas as operações de um CRUD usando array em memória.',
-        detail:
-            'Crie uma API REST para gerenciar "tarefas" com:\n\n' +
-            '• POST   /tasks       → criar tarefa\n' +
-            '• GET    /tasks       → listar todas\n' +
-            '• GET    /tasks/:id   → buscar por id\n' +
-            '• PUT    /tasks/:id   → atualizar\n' +
-            '• DELETE /tasks/:id   → deletar\n\n' +
-            'Os dados ficam em um array JavaScript (sem banco de dados).\n' +
-            'Cada tarefa tem: id, title, done, createdAt.',
-        hint: 'Gere ids únicos com Date.now().toString() ou uuid. Filtre o array para DELETE.',
-        example: 'POST /tasks {"title":"Estudar"} → 201, {id:"1",title:"Estudar",done:false}',
-        tags: ['crud', 'rest', 'express', 'api'],
+        detail: 'API REST para tarefas: POST, GET, PUT, DELETE. Dados em array JavaScript sem banco.',
+        hint: 'Gere ids únicos com Date.now().toString(). Filtre o array para DELETE.',
+        example: 'POST /tasks {"title":"Estudar"} → 201, {id:"1", title:"Estudar", done:false}',
+        tags: ['crud', 'rest', 'express'],
         difficulty: 'iniciante',
         category: 'backend',
         xp: 40,
+        quiz: {
+            question: 'Qual método HTTP é correto para ATUALIZAR um recurso existente?',
+            options: ['GET', 'POST', 'PUT', 'HEAD'],
+            correctIndex: 2,
+            explanation: 'PUT substitui o recurso completo. PATCH atualiza parcialmente. GET apenas lê. POST cria um novo.',
+        },
     },
     {
         id: 'b3',
         title: 'Middleware de Autenticação',
         description: 'Proteja rotas com um middleware que valida um token simples.',
-        detail:
-            'Crie um middleware `authenticate` que:\n\n' +
-            '• Leia o header Authorization: Bearer <token>\n' +
-            '• Valide o token contra uma lista fixa (mockada)\n' +
-            '• Se válido: chame next() e adicione o usuário em req.user\n' +
-            '• Se inválido: retorne status 401 com mensagem de erro\n\n' +
-            'Proteja a rota GET /dashboard com esse middleware.\n\n' +
-            'Desafio extra: implemente rate limiting básico (máx. 5 req/min por IP).',
+        detail: 'Crie middleware que lê Authorization: Bearer <token>, valida e chama next() ou retorna 401.',
         hint: 'req.headers.authorization?.split(" ")[1] extrai o token do header.',
         example: 'GET /dashboard sem token → 401\nGET /dashboard com token válido → 200',
-        tags: ['middleware', 'auth', 'express', 'segurança'],
+        tags: ['middleware', 'auth', 'segurança'],
         difficulty: 'intermediário',
         category: 'backend',
         xp: 55,
+        quiz: {
+            question: 'O que um middleware Express faz quando chama next()?',
+            options: ['Encerra a requisição', 'Passa o controle para o próximo middleware/rota', 'Reinicia o servidor', 'Retorna status 200'],
+            correctIndex: 1,
+            explanation: 'next() passa o controle ao próximo middleware na cadeia. Sem chamá-lo, a requisição fica "presa".',
+        },
     },
     {
         id: 'b4',
         title: 'Paginação de Resultados',
         description: 'Implemente paginação com page, limit e metadados na resposta.',
-        detail:
-            'Crie um endpoint GET /products que suporte paginação:\n\n' +
-            '• Query params: ?page=1&limit=10\n' +
-            '• Resposta deve incluir:\n' +
-            '  - data: array de produtos da página atual\n' +
-            '  - total: total de produtos\n' +
-            '  - page: página atual\n' +
-            '  - totalPages: total de páginas\n' +
-            '  - hasNext / hasPrev: booleans\n\n' +
-            'Use um array de 50 produtos mockados.',
+        detail: 'Endpoint GET /products com ?page=1&limit=10. Resposta inclui data, total, totalPages, hasNext, hasPrev.',
         hint: 'offset = (page - 1) * limit. Depois use arr.slice(offset, offset + limit).',
         example: 'GET /products?page=2&limit=5 → produtos 6 a 10, totalPages: 10',
         tags: ['paginação', 'api', 'query params'],
         difficulty: 'intermediário',
         category: 'backend',
         xp: 45,
+        quiz: {
+            question: 'Como calcular o offset para buscar a página 3 com limit 10?',
+            options: ['offset = 3', 'offset = 30', 'offset = 20', 'offset = 10'],
+            correctIndex: 2,
+            explanation: 'offset = (page - 1) * limit = (3 - 1) * 10 = 20. Pula os primeiros 20 itens para chegar à página 3.',
+        },
     },
 
     // ── MOBILE ────────────────────────────────────────────────────────────────
@@ -312,78 +342,73 @@ export const EXERCISES: Exercise[] = [
         id: 'm1',
         title: 'FlatList Performática',
         description: 'Renderize uma lista de 100 itens com FlatList sem travar a UI.',
-        detail:
-            'Crie uma tela React Native com:\n\n' +
-            '• FlatList com 100 itens\n' +
-            '• Cada item exibe nome e avatar (pode ser placeholder)\n' +
-            '• Pull-to-refresh simulado (1.5s de loading)\n' +
-            '• keyExtractor correto para evitar warnings\n\n' +
-            'Propriedades obrigatórias:\n' +
-            '• initialNumToRender={10}\n' +
-            '• maxToRenderPerBatch={10}\n' +
-            '• windowSize={5}\n\n' +
-            'Observe a diferença de performance com e sem essas props.',
+        detail: 'FlatList com 100 itens, pull-to-refresh e props de performance: initialNumToRender, maxToRenderPerBatch, windowSize.',
         hint: 'Envolva o componente de item em React.memo para evitar re-renders desnecessários.',
-        example: 'Lista fluida ao rolar, pull-to-refresh mostra spinner por 1.5s e recarrega.',
+        example: 'Lista fluida ao rolar, pull-to-refresh mostra spinner por 1.5s.',
         tags: ['flatlist', 'performance', 'react native'],
         difficulty: 'iniciante',
         category: 'mobile',
         xp: 30,
+        quiz: {
+            question: 'Por que FlatList é melhor que ScrollView para listas longas?',
+            options: ['FlatList tem mais estilos', 'FlatList renderiza só os itens visíveis (lazy)', 'ScrollView é mais antigo', 'Não há diferença'],
+            correctIndex: 1,
+            explanation: 'FlatList usa virtualização — renderiza apenas os itens visíveis na tela, economizando memória e melhorando performance.',
+        },
     },
     {
         id: 'm2',
         title: 'AsyncStorage: Persistência Local',
         description: 'Salve e carregue preferências do usuário com AsyncStorage.',
-        detail:
-            'Implemente um sistema de preferências que:\n\n' +
-            '• Salva nome do usuário, tema (claro/escuro) e tamanho de fonte\n' +
-            '• Persiste entre sessões com AsyncStorage\n' +
-            '• Cria um custom hook usePreferences() para encapsular a lógica\n' +
-            '• Exibe um loading enquanto lê do storage no início\n\n' +
-            'O hook deve expor: preferences, updatePreference, resetPreferences.',
+        detail: 'Sistema de preferências com nome, tema e tamanho de fonte. Custom hook usePreferences() com load/save/reset.',
         hint: 'Combine useEffect (carregar no mount) + useCallback (salvar) para um hook limpo.',
-        example: 'Fechar e reabrir o app mantém o nome e tema escolhidos pelo usuário.',
+        example: 'Fechar e reabrir o app mantém o tema escolhido.',
         tags: ['asyncstorage', 'hooks', 'persistência'],
         difficulty: 'iniciante',
         category: 'mobile',
         xp: 35,
+        quiz: {
+            question: 'AsyncStorage é síncrono ou assíncrono?',
+            options: ['Síncrono — bloqueia até terminar', 'Assíncrono — retorna uma Promise', 'Depende da plataforma', 'Síncrono no iOS e assíncrono no Android'],
+            correctIndex: 1,
+            explanation: 'AsyncStorage é assíncrono — todas as operações retornam Promises. Use await/async para ler e escrever.',
+        },
     },
     {
         id: 'm3',
         title: 'Animação com Reanimated',
         description: 'Crie um botão com animação de press usando react-native-reanimated.',
-        detail:
-            'Construa um botão animado que:\n\n' +
-            '• Diminui de escala ao pressionar (scale: 1 → 0.95)\n' +
-            '• Volta ao tamanho normal ao soltar\n' +
-            '• Tem um feedback visual de cor no press\n' +
-            '• Usa useSharedValue + useAnimatedStyle + withSpring\n\n' +
-            'Depois, adicione uma animação de "pulse" contínua quando o botão estiver inativo por 3 segundos.',
+        detail: 'Botão que encolhe ao pressionar (scale 1→0.95) e volta com mola. Use useSharedValue + useAnimatedStyle + withSpring.',
         hint: 'onPressIn inicia a animação, onPressOut reverte. withSpring dá a física natural.',
-        example: 'Pressionar o botão: encolhe suavemente e muda a cor. Soltar: volta com "mola".',
-        tags: ['reanimated', 'animação', 'UX', 'gestos'],
+        example: 'Pressionar: encolhe suavemente. Soltar: volta com "mola".',
+        tags: ['reanimated', 'animação', 'gestos'],
         difficulty: 'intermediário',
         category: 'mobile',
         xp: 45,
+        quiz: {
+            question: 'Qual a vantagem do react-native-reanimated sobre o Animated padrão?',
+            options: ['Tem mais animações prontas', 'Roda na thread de UI nativa (não na JS thread)', 'É mais simples de usar', 'Suporta apenas iOS'],
+            correctIndex: 1,
+            explanation: 'Reanimated executa animações na thread nativa, evitando o gargalo da JS thread e garantindo 60fps mesmo com a CPU ocupada.',
+        },
     },
     {
         id: 'm4',
         title: 'Formulário com Teclado',
         description: 'Crie um formulário que não fica escondido pelo teclado do celular.',
-        detail:
-            'Um dos problemas mais comuns no React Native!\n\n' +
-            'Implemente um formulário de login que:\n' +
-            '• Usa KeyboardAvoidingView com behavior correto por plataforma\n' +
-            '• Ao focar no campo de senha, scrolla automaticamente\n' +
-            '• Teclado fecha ao tocar fora dos inputs\n' +
-            '• No iOS: behavior="padding". No Android: behavior="height"\n\n' +
-            'Use ScrollView + KeyboardAvoidingView juntos.',
+        detail: 'Formulário de login com KeyboardAvoidingView. No iOS: behavior="padding". No Android: behavior="height".',
         hint: 'Platform.OS === "ios" ? "padding" : "height" resolve a diferença entre plataformas.',
-        example: 'Campo senha no final da tela: ao focar, a view sobe e o campo fica visível.',
-        tags: ['teclado', 'UX', 'KeyboardAvoidingView', 'formulário'],
+        example: 'Campo senha ao fundo: ao focar, a view sobe e o campo fica visível.',
+        tags: ['teclado', 'UX', 'KeyboardAvoidingView'],
         difficulty: 'intermediário',
         category: 'mobile',
         xp: 40,
+        quiz: {
+            question: 'Qual behavior do KeyboardAvoidingView usar no iOS?',
+            options: ['"height"', '"position"', '"padding"', '"margin"'],
+            correctIndex: 2,
+            explanation: '"padding" funciona melhor no iOS pois adiciona padding ao container. No Android, "height" é mais adequado.',
+        },
     },
 
     // ── GIT ───────────────────────────────────────────────────────────────────
@@ -391,82 +416,73 @@ export const EXERCISES: Exercise[] = [
         id: 'g1',
         title: 'Primeiro Commit Perfeito',
         description: 'Crie um repositório e faça um commit seguindo Conventional Commits.',
-        detail:
-            'Execute os seguintes passos em ordem:\n\n' +
-            '1. git init em uma pasta nova\n' +
-            '2. Crie um arquivo README.md com o título do projeto\n' +
-            '3. git add README.md\n' +
-            '4. git commit -m "docs: add README with project description"\n' +
-            '5. Crie mais um arquivo index.js\n' +
-            '6. git add . && git commit -m "feat: add initial project structure"\n\n' +
-            'Padrão Conventional Commits: feat | fix | docs | style | refactor | test | chore',
+        detail: 'git init, README.md, git add, commit com mensagem no padrão feat/fix/docs/chore.',
         hint: 'git log --oneline mostra seu histórico de commits de forma compacta.',
-        example: 'git log → dois commits com mensagens no padrão Conventional Commits.',
+        example: 'git log → commits com mensagens "docs: add README" e "feat: add structure"',
         tags: ['git', 'commit', 'conventional commits'],
         difficulty: 'iniciante',
         category: 'git',
         xp: 20,
+        quiz: {
+            question: 'Qual prefixo Conventional Commits usar ao adicionar uma nova funcionalidade?',
+            options: ['fix:', 'docs:', 'feat:', 'chore:'],
+            correctIndex: 2,
+            explanation: '"feat:" indica nova funcionalidade. "fix:" para correções, "docs:" para documentação, "chore:" para tarefas de manutenção.',
+        },
     },
     {
         id: 'g2',
         title: 'Branches e Merge',
         description: 'Crie uma feature branch, desenvolva e faça merge sem conflitos.',
-        detail:
-            'Simule um fluxo de feature branch:\n\n' +
-            '1. No branch main, crie um arquivo app.js com uma função simples\n' +
-            '2. git checkout -b feat/nova-funcionalidade\n' +
-            '3. Adicione uma nova função ao app.js\n' +
-            '4. Commit no branch de feature\n' +
-            '5. Volte para main: git checkout main\n' +
-            '6. git merge feat/nova-funcionalidade\n' +
-            '7. git branch -d feat/nova-funcionalidade\n\n' +
-            'Verifique que main tem as mudanças de ambos.',
+        detail: 'Fluxo completo: criar branch, desenvolver, commit, voltar ao main, fazer merge e deletar a branch.',
         hint: 'git log --all --oneline --graph visualiza os branches e merges graficamente.',
         example: 'git log --graph mostra o ponto de bifurcação e o merge commit.',
-        tags: ['git', 'branch', 'merge', 'fluxo'],
+        tags: ['git', 'branch', 'merge'],
         difficulty: 'iniciante',
         category: 'git',
         xp: 25,
+        quiz: {
+            question: 'Qual comando cria e muda para uma nova branch ao mesmo tempo?',
+            options: ['git branch nova', 'git checkout nova', 'git checkout -b nova', 'git merge nova'],
+            correctIndex: 2,
+            explanation: 'git checkout -b nome cria a branch e muda para ela. Equivalente a: git branch nome + git checkout nome.',
+        },
     },
     {
         id: 'g3',
         title: 'Resolvendo Conflitos de Merge',
         description: 'Gere intencionalmente um conflito e resolva-o manualmente.',
-        detail:
-            'Crie um conflito de merge real:\n\n' +
-            '1. No main, crie config.js com: const PORT = 3000\n' +
-            '2. Crie e vá para o branch feat/config\n' +
-            '3. Mude para: const PORT = 8080\n' +
-            '4. Volte para main e mude para: const PORT = 5000\n' +
-            '5. Tente fazer merge → vai conflitar!\n' +
-            '6. Abra o arquivo, entenda os marcadores <<<<, ==== e >>>>\n' +
-            '7. Escolha a versão correta, salve e finalize o merge\n\n' +
-            'O conflito é uma habilidade essencial — não tenha medo dele.',
+        detail: 'Criar conflito alterando a mesma linha em dois branches e resolver os marcadores <<<<<<, ====== e >>>>>>.',
         hint: 'Os marcadores <<<<<<< HEAD mostram sua versão. >>>>>>> feat/config mostra a versão que vem.',
         example: 'Após resolver: git add config.js && git commit → merge concluído.',
-        tags: ['git', 'conflito', 'merge', 'avançado'],
+        tags: ['git', 'conflito', 'merge'],
         difficulty: 'intermediário',
         category: 'git',
         xp: 45,
+        quiz: {
+            question: 'O que os marcadores <<<<<<< HEAD indicam num conflito de merge?',
+            options: ['A versão do branch remoto', 'A versão do seu branch atual', 'Um erro do Git', 'A versão mais antiga'],
+            correctIndex: 1,
+            explanation: 'HEAD aponta para o seu branch atual. O conteúdo entre <<<<<<< HEAD e ======= é sua versão local.',
+        },
     },
     {
         id: 'g4',
         title: 'Git Rebase Interativo',
         description: 'Use rebase -i para limpar o histórico de commits antes de um PR.',
-        detail:
-            'Simule a limpeza de commits antes de abrir um Pull Request:\n\n' +
-            '1. Faça 4 commits pequenos (pode ser mudanças triviais em README)\n' +
-            '2. Execute: git rebase -i HEAD~4\n' +
-            '3. Use "squash" para combinar os 4 em 1 commit limpo\n' +
-            '4. Escreva uma mensagem de commit descritiva no padrão Conventional\n\n' +
-            'Resultado: um histórico limpo e linear, ideal para PRs.\n\n' +
-            'Atenção: nunca faça rebase em branches públicos compartilhados!',
-        hint: 'No editor do rebase, mude "pick" para "s" ou "squash" nos commits que quer combinar.',
-        example: '4 commits "wip", "fix", "fix2", "final" → 1 commit "feat: add user profile page"',
-        tags: ['git', 'rebase', 'histórico', 'avançado'],
+        detail: 'Fazer 4 commits pequenos, usar git rebase -i HEAD~4 e squash para combiná-los em 1 commit limpo.',
+        hint: 'No editor do rebase, mude "pick" para "s" ou "squash" nos commits a combinar.',
+        example: '4 commits "wip", "fix", "fix2", "final" → 1 commit "feat: add user profile"',
+        tags: ['git', 'rebase', 'histórico'],
         difficulty: 'avançado',
         category: 'git',
         xp: 60,
+        quiz: {
+            question: 'O que "squash" faz no rebase interativo?',
+            options: ['Deleta o commit', 'Combina o commit com o anterior', 'Renomeia o commit', 'Reverte as mudanças'],
+            correctIndex: 1,
+            explanation: '"squash" combina o commit com o anterior, unindo as mudanças. Útil para limpar histórico antes de abrir um PR.',
+        },
     },
 
     // ── API ───────────────────────────────────────────────────────────────────
@@ -474,58 +490,60 @@ export const EXERCISES: Exercise[] = [
         id: 'a1',
         title: 'Consumir API com Fetch',
         description: 'Busque dados de uma API pública e exiba com loading e tratamento de erro.',
-        detail:
-            'Use a API pública do GitHub (sem autenticação):\n\n' +
-            'URL: https://api.github.com/users/{username}\n\n' +
-            'Implemente:\n' +
-            '• Estado de loading enquanto busca\n' +
-            '• Exibição dos dados: avatar, nome, bio, seguidores\n' +
-            '• Tratamento de erro: usuário não encontrado (404)\n' +
-            '• Tratamento de erro: sem internet\n\n' +
-            'Use async/await com try/catch, não .then/.catch.',
+        detail: 'Use a API do GitHub (https://api.github.com/users/{username}) com loading, exibição e tratamento de erros.',
         hint: 'if (!response.ok) throw new Error(response.statusText) logo após o fetch.',
-        example: 'Buscar "torvalds" → exibe foto, nome Linus Torvalds e número de repos.',
-        tags: ['fetch', 'async/await', 'api pública', 'erros'],
+        example: 'Buscar "torvalds" → exibe foto, nome e número de repos.',
+        tags: ['fetch', 'async/await', 'api pública'],
         difficulty: 'iniciante',
         category: 'api',
         xp: 30,
+        quiz: {
+            question: 'O que response.ok verifica numa chamada fetch?',
+            options: ['Se a resposta é JSON', 'Se o status HTTP está entre 200-299', 'Se há conexão com a internet', 'Se o body não está vazio'],
+            correctIndex: 1,
+            explanation: 'response.ok é true quando o status HTTP está entre 200-299. Status 404 ou 500, por exemplo, resultam em ok = false.',
+        },
     },
     {
         id: 'a2',
         title: 'Debounce em Busca',
         description: 'Evite chamadas excessivas à API ao digitar com debounce.',
-        detail:
-            'Implemente uma busca que:\n\n' +
-            '• Chama a API do GitHub a cada digitação (problema)\n' +
-            '• Aplica debounce de 500ms para resolver o problema\n' +
-            '• Cancela requisições em andamento quando nova busca inicia (AbortController)\n\n' +
-            'Implemente o debounce manualmente usando setTimeout/clearTimeout — não use biblioteca.\n\n' +
-            'Depois explique: qual a diferença entre debounce e throttle?',
+        detail: 'Busca com debounce de 500ms implementado manualmente com setTimeout/clearTimeout e AbortController.',
         hint: 'useEffect retorna uma função de cleanup. Use-a para clearTimeout e abort().',
         example: 'Digitando "torv" rapidamente → apenas 1 requisição após parar de digitar.',
-        tags: ['debounce', 'performance', 'AbortController', 'UX'],
+        tags: ['debounce', 'performance', 'AbortController'],
         difficulty: 'intermediário',
         category: 'api',
         xp: 50,
+        quiz: {
+            question: 'Qual a diferença entre debounce e throttle?',
+            options: [
+                'São a mesma coisa',
+                'Debounce aguarda parar de digitar; throttle limita chamadas por intervalo fixo',
+                'Throttle aguarda parar; debounce limita por intervalo',
+                'Debounce é síncrono; throttle é assíncrono',
+            ],
+            correctIndex: 1,
+            explanation: 'Debounce executa só após o usuário parar. Throttle executa no máximo 1x por intervalo fixo. Cada um resolve problemas diferentes.',
+        },
     },
     {
         id: 'a3',
         title: 'Cache Local de Requisições',
         description: 'Evite requisições repetidas guardando respostas em memória.',
-        detail:
-            'Crie um hook useCache que:\n\n' +
-            '• Mantém um Map() como cache em memória\n' +
-            '• Antes de buscar, verifica se a resposta já existe no cache\n' +
-            '• Se existir e for recente (< 5 min), retorna do cache\n' +
-            '• Se não, faz a requisição e salva no cache\n\n' +
-            'Implemente para a API do GitHub.\n\n' +
-            'Abra o DevTools (Network) e observe: a segunda busca pelo mesmo usuário não gera requisição.',
+        detail: 'Hook useCache com Map() que verifica se a resposta existe e é recente (< 5min) antes de buscar.',
         hint: 'cache.set(url, { data, timestamp: Date.now() }). Na leitura: Date.now() - entry.timestamp < 300000.',
         example: 'Buscar "torvalds" duas vezes → 2ª vez instantânea, sem requisição de rede.',
-        tags: ['cache', 'performance', 'Map', 'hooks'],
+        tags: ['cache', 'performance', 'Map'],
         difficulty: 'avançado',
         category: 'api',
         xp: 65,
+        quiz: {
+            question: 'Por que usar Map() para cache em vez de um objeto {}?',
+            options: ['Map é mais rápido para números', 'Map mantém a ordem de inserção e funciona melhor como dicionário dinâmico', 'Objetos não aceitam strings como chave', 'Não há diferença prática'],
+            correctIndex: 1,
+            explanation: 'Map é otimizado para inserções/buscas frequentes, mantém ordem e qualquer tipo pode ser chave. Para cache, é mais semântico e performático.',
+        },
     },
 
     // ── BANCO DE DADOS ────────────────────────────────────────────────────────
@@ -533,88 +551,82 @@ export const EXERCISES: Exercise[] = [
         id: 'd1',
         title: 'SELECT com WHERE e ORDER BY',
         description: 'Filtre e ordene dados usando SQL básico.',
-        detail:
-            'Dado o schema:\n\n' +
-            'CREATE TABLE produtos (\n' +
-            '  id SERIAL PRIMARY KEY,\n' +
-            '  nome VARCHAR(100),\n' +
-            '  preco DECIMAL(10,2),\n' +
-            '  categoria VARCHAR(50),\n' +
-            '  estoque INT\n' +
-            ');\n\n' +
-            'Escreva queries para:\n' +
-            '1. Produtos com preço entre R$50 e R$200\n' +
-            '2. Produtos da categoria "eletrônicos" com estoque > 0\n' +
-            '3. Top 5 produtos mais caros\n' +
-            '4. Produtos cujo nome começa com "A" (case insensitive)',
-        hint: 'BETWEEN, AND, ORDER BY DESC, LIMIT e ILIKE são seus aliados aqui.',
-        example: 'Query 3: SELECT * FROM produtos ORDER BY preco DESC LIMIT 5;',
-        tags: ['sql', 'select', 'where', 'order by'],
+        detail: 'Queries para filtrar produtos por preço, categoria, estoque e nome. Use BETWEEN, ORDER BY DESC, LIMIT e ILIKE.',
+        hint: 'BETWEEN, AND, ORDER BY DESC, LIMIT e ILIKE são seus aliados.',
+        example: 'SELECT * FROM produtos ORDER BY preco DESC LIMIT 5;',
+        tags: ['sql', 'select', 'where'],
         difficulty: 'iniciante',
         category: 'banco',
         xp: 25,
+        quiz: {
+            question: 'Qual cláusula SQL ordena os resultados em ordem decrescente?',
+            options: ['ORDER BY campo ASC', 'ORDER BY campo DESC', 'SORT BY campo', 'GROUP BY campo'],
+            correctIndex: 1,
+            explanation: 'ORDER BY campo DESC ordena do maior para o menor. ASC (padrão) ordena crescente.',
+        },
     },
     {
         id: 'd2',
         title: 'JOIN entre tabelas',
         description: 'Combine dados de múltiplas tabelas com INNER e LEFT JOIN.',
-        detail:
-            'Schema com duas tabelas:\n\n' +
-            'usuarios (id, nome, email)\n' +
-            'pedidos (id, usuario_id, produto, valor, data)\n\n' +
-            'Escreva queries para:\n' +
-            '1. INNER JOIN: todos os pedidos com nome do usuário\n' +
-            '2. LEFT JOIN: todos os usuários, mesmo sem pedidos\n' +
-            '3. Total gasto por cada usuário (GROUP BY + SUM)\n' +
-            '4. Usuários que fizeram mais de 2 pedidos (HAVING)\n\n' +
-            'Explique: quando usar INNER vs LEFT JOIN?',
-        hint: 'INNER JOIN retorna só os que têm correspondência em AMBAS as tabelas. LEFT JOIN mantém todos da esquerda.',
-        example: 'Query 3: SELECT u.nome, SUM(p.valor) as total FROM usuarios u JOIN pedidos p ON u.id = p.usuario_id GROUP BY u.nome;',
-        tags: ['sql', 'join', 'group by', 'aggregate'],
+        detail: 'Queries com INNER JOIN, LEFT JOIN, GROUP BY + SUM e HAVING em tabelas usuarios/pedidos.',
+        hint: 'INNER JOIN retorna só correspondências em ambas. LEFT JOIN mantém todos da esquerda.',
+        example: 'SELECT u.nome, SUM(p.valor) FROM usuarios u JOIN pedidos p ON u.id = p.usuario_id GROUP BY u.nome;',
+        tags: ['sql', 'join', 'group by'],
         difficulty: 'intermediário',
         category: 'banco',
         xp: 45,
+        quiz: {
+            question: 'Quando usar LEFT JOIN em vez de INNER JOIN?',
+            options: [
+                'Quando quero só registros com correspondência nas duas tabelas',
+                'Quando quero todos da tabela esquerda, mesmo sem correspondência',
+                'Quando a tabela esquerda é menor',
+                'São equivalentes',
+            ],
+            correctIndex: 1,
+            explanation: 'LEFT JOIN mantém todos os registros da tabela esquerda. Se não houver correspondência na direita, os campos ficam NULL.',
+        },
     },
     {
         id: 'd3',
         title: 'Modelagem: Sistema de Blog',
         description: 'Projete as tabelas de um blog com posts, categorias e comentários.',
-        detail:
-            'Projete o banco de dados para um blog com as seguintes regras de negócio:\n\n' +
-            '• Um post tem um autor\n' +
-            '• Um post pode ter múltiplas categorias (many-to-many)\n' +
-            '• Um post pode ter múltiplos comentários\n' +
-            '• Comentários podem ter respostas (comentários aninhados)\n' +
-            '• Cada entidade precisa de created_at e updated_at\n\n' +
-            'Entregue:\n' +
-            '1. Diagrama ER (pode ser texto descritivo)\n' +
-            '2. CREATE TABLE para cada tabela\n' +
-            '3. Justificativa das chaves estrangeiras',
-        hint: 'Many-to-many precisa de tabela de junção. Comentário aninhado: coluna parent_id referenciando a mesma tabela.',
+        detail: 'Modelar: posts com autor, categorias many-to-many, comentários aninhados, timestamps em tudo.',
+        hint: 'Many-to-many precisa de tabela de junção. Comentário aninhado: coluna parent_id.',
         example: 'Tabela post_categorias (post_id FK, categoria_id FK) resolve o many-to-many.',
-        tags: ['modelagem', 'er', 'foreign key', 'design'],
+        tags: ['modelagem', 'er', 'foreign key'],
         difficulty: 'intermediário',
         category: 'banco',
         xp: 55,
+        quiz: {
+            question: 'Como representar um relacionamento many-to-many em SQL?',
+            options: ['Coluna de array em uma das tabelas', 'Tabela de junção com duas chaves estrangeiras', 'Coluna TEXT com IDs separados por vírgula', 'Não é possível em SQL'],
+            correctIndex: 1,
+            explanation: 'Many-to-many exige uma tabela de junção (pivot) com foreign keys para ambas as tabelas. Ex: post_categorias(post_id, categoria_id).',
+        },
     },
     {
         id: 'd4',
         title: 'Índices e EXPLAIN ANALYZE',
         description: 'Otimize uma query lenta adicionando o índice correto.',
-        detail:
-            'Otimização de performance real:\n\n' +
-            '1. Crie uma tabela com 100.000 registros (use generate_series)\n' +
-            '2. Execute uma query sem índice e anote o tempo\n' +
-            '3. Use EXPLAIN ANALYZE para ver o plano de execução\n' +
-            '4. Crie o índice adequado: CREATE INDEX ...\n' +
-            '5. Execute EXPLAIN ANALYZE novamente\n' +
-            '6. Compare Seq Scan vs Index Scan\n\n' +
-            'A diferença de tempo será dramática. Isso é o poder dos índices.',
-        hint: 'EXPLAIN ANALYZE mostra o custo estimado e real de cada operação. Seq Scan em tabela grande = problema.',
+        detail: 'Criar tabela com 100k registros, executar query sem índice, usar EXPLAIN ANALYZE, criar índice e comparar.',
+        hint: 'EXPLAIN ANALYZE mostra o custo estimado e real. Seq Scan em tabela grande = problema.',
         example: 'Sem índice: 45ms. Com índice em email: 0.1ms. 450x mais rápido.',
-        tags: ['postgresql', 'índices', 'performance', 'explain'],
+        tags: ['postgresql', 'índices', 'performance'],
         difficulty: 'avançado',
         category: 'banco',
         xp: 70,
+        quiz: {
+            question: 'O que um índice de banco de dados faz?',
+            options: [
+                'Duplica os dados para backup',
+                'Cria uma estrutura auxiliar para buscas mais rápidas',
+                'Remove dados duplicados',
+                'Ordena a tabela permanentemente',
+            ],
+            correctIndex: 1,
+            explanation: 'Um índice cria uma estrutura auxiliar (B-tree geralmente) que permite encontrar linhas sem varrer a tabela inteira — de O(n) para O(log n).',
+        },
     },
 ];

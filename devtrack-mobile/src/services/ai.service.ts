@@ -8,7 +8,7 @@ import Constants from 'expo-constants';
 const GEMINI_API_KEY = (Constants.expoConfig?.extra?.geminiApiKey as string) ?? '';
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
-export type StudyArea = 'frontend' | 'backend' | 'fullstack';
+export type StudyArea = 'frontend' | 'backend' | 'fullstack' | 'mobile' | 'devops';
 
 export interface AISuggestionInput {
     streak: number;
@@ -151,12 +151,20 @@ function fallback(input: AISuggestionInput): AIResult {
         fullstack: hasLearnings
             ? `Você está estudando temas variados. Tente conectar o que aprendeu no frontend com conceitos equivalentes no backend.`
             : `Comece seu primeiro registro, ${input.firstName}. Pode ser algo simples — o importante é criar o hábito.`,
+        mobile: hasLearnings
+            ? `Seus estudos mobile estão avançando. Explore performance e animações nativas para diferenciar seu app.`
+            : `Registre seu primeiro aprendizado mobile, ${input.firstName}. React Native tem muito para explorar!`,
+        devops: hasLearnings
+            ? `Você está evoluindo em DevOps. Foque em entender o pipeline completo: build, test e deploy.`
+            : `Comece documentando sua setup, ${input.firstName}. Cada configuração aprendida vale ouro.`,
     };
 
     const topicsByArea: Record<StudyArea, string[]> = {
         frontend: ['React Server Components', 'CSS Cascade Layers', 'Web Performance APIs'],
         backend:  ['Database Indexing', 'JWT Best Practices', 'API Rate Limiting'],
         fullstack:['TypeScript Generics', 'HTTP Caching', 'Monorepo Setup'],
+        mobile:   ['React Native Reanimated 3', 'Expo Router v4', 'AsyncStorage vs MMKV'],
+        devops:   ['GitHub Actions', 'Docker Compose', 'Nginx Reverse Proxy'],
     };
 
     return {

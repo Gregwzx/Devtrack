@@ -43,4 +43,16 @@ public class UserController {
         String userId = ((CustomUserDetails) userDetails).getId();
         return ResponseEntity.ok(updateUserProfile.execute(userId, dto));
     }
+
+    // PUT /api/v1/users/me/lives — gerencia as vidas do sistema de gamificação
+    // actions: "lose" | "restore" | "refill"
+    @PutMapping("/me/lives")
+    @Operation(summary = "Gerenciar vidas do sistema de gamificação")
+    public ResponseEntity<UserDTO> updateLives(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestBody java.util.Map<String, String> body
+    ) {
+        String userId = ((CustomUserDetails) userDetails).getId();
+        return ResponseEntity.ok(updateUserProfile.updateLives(userId, body.get("action")));
+    }
 }
