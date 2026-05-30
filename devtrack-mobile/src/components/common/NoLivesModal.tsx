@@ -1,149 +1,134 @@
-// src/components/common/NoLivesModal.tsx
-// Modal de "sem vidas" com opções: anúncio simulado ou premium
+// src/components/common/NoLivesModal.tsx — Lucide icons, sem emojis, design 3D
 import React, { useState, useEffect, useRef } from 'react';
-import {
-    Modal, View, Text, TouchableOpacity, StyleSheet, Animated as RNAnimated,
-} from 'react-native';
+import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Animated, {
-    FadeIn, FadeInDown, withSpring, useSharedValue, useAnimatedStyle,
+    FadeInDown, withSpring, useSharedValue, useAnimatedStyle,
     withSequence, withTiming, withRepeat,
 } from 'react-native-reanimated';
+import { Heart, Tv2, Play, Zap, Clock, X } from 'lucide-react-native';
 import { useLives } from '../../context/LivesContext';
 
-interface NoLivesModalProps {
-    visible: boolean;
-    onClose: () => void;
-    onLifeRestored: () => void;
-}
+interface Props { visible:boolean; onClose:()=>void; onLifeRestored:()=>void; }
 
-const AD_DURATION = 5; // segundos do "anúncio"
+const AD_DURATION = 5;
 
-export default function NoLivesModal({ visible, onClose, onLifeRestored }: NoLivesModalProps) {
+export default function NoLivesModal({ visible, onClose, onLifeRestored }:Props) {
     const { restoreLife, activateInfinite, nextRefillIn, maxLives, lives } = useLives();
-    const [watching, setWatching] = useState(false);
+    const [watching,  setWatching]  = useState(false);
     const [countdown, setCountdown] = useState(AD_DURATION);
-    const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const intervalRef = useRef<ReturnType<typeof setInterval>|null>(null);
 
     const pulseScale = useSharedValue(1);
     const adProgress = useSharedValue(0);
 
-    useEffect(() => {
-        if (visible) {
+    useEffect(()=>{
+        if(visible){
             pulseScale.value = withRepeat(
-                withSequence(withTiming(1.05, { duration: 900 }), withTiming(1, { duration: 900 })),
-                -1, true,
+                withSequence(withTiming(1.06,{duration:800}),withTiming(1,{duration:800})),-1,true
             );
         }
-    }, [visible]);
+    },[visible]);
 
-    const pulseStyle = useAnimatedStyle(() => ({
-        transform: [{ scale: pulseScale.value }],
-    }));
+    const pulseStyle  = useAnimatedStyle(()=>({transform:[{scale:pulseScale.value}]}));
+    const adBarStyle  = useAnimatedStyle(()=>({width:`${adProgress.value*100}%` as any}));
 
-    const adBarStyle = useAnimatedStyle(() => ({
-        width: `${adProgress.value * 100}%` as any,
-    }));
-
-    const startWatchingAd = () => {
-        setWatching(true);
-        setCountdown(AD_DURATION);
-        adProgress.value = 0;
-        adProgress.value = withTiming(1, { duration: AD_DURATION * 1000 });
-
-        intervalRef.current = setInterval(() => {
-            setCountdown(c => {
-                if (c <= 1) {
+    const startAd = ()=>{
+        setWatching(true); setCountdown(AD_DURATION);
+        adProgress.value=0;
+        adProgress.value = withTiming(1,{duration:AD_DURATION*1000});
+        intervalRef.current = setInterval(()=>{
+            setCountdown(c=>{
+                if(c<=1){
                     clearInterval(intervalRef.current!);
                     setWatching(false);
-                    restoreLife();
-                    onLifeRestored();
-                    onClose();
+                    restoreLife(); onLifeRestored(); onClose();
                     return 0;
                 }
-                return c - 1;
+                return c-1;
             });
-        }, 1000);
+        },1000);
     };
 
-    const handlePremium = () => {
-        activateInfinite();
-        onClose();
-    };
+    const handlePremium = ()=>{ activateInfinite(); onClose(); };
+    useEffect(()=>()=>{ if(intervalRef.current) clearInterval(intervalRef.current); },[]);
 
-    useEffect(() => {
-        return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-    }, []);
-
-    function formatTime(seconds: number) {
-        const m = Math.floor(seconds / 60);
-        const s = seconds % 60;
-        return `${m}:${String(s).padStart(2, '0')}`;
-    }
+    function fmt(s:number){ return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`; }
 
     return (
         <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-            <View style={styles.overlay}>
-                <Animated.View entering={FadeInDown.springify()} style={styles.card}>
+            <View style={s.overlay}>
+                <Animated.View entering={FadeInDown.springify()} style={s.card}>
 
-                    {/* Corações quebrados */}
-                    <Animated.View style={[styles.heartsRow, pulseStyle]}>
-                        {Array.from({ length: maxLives }, (_, i) => (
-                            <Text key={i} style={[styles.heartIcon, i < lives && styles.heartFull]}>
-                                {i < lives ? '❤️' : '🖤'}
-                            </Text>
+                    {/* Close */}
+                    <TouchableOpacity style={s.closeX} onPress={onClose}>
+                        <X size={20} color="#6b6880" strokeWidth={2.5}/>
+                    </TouchableOpacity>
+
+                    {/* Hearts */}
+                    <Animated.View style={[s.heartsRow,pulseStyle]}>
+                        {Array.from({length:maxLives},(_,i)=>(
+                            <Heart key={i} size={30}
+                                color={i<lives?'#ff4b4b':'#37464f'}
+                                fill={i<lives?'#ff4b4b':'#37464f'}
+                                strokeWidth={2}
+                            />
                         ))}
                     </Animated.View>
 
-                    <Text style={styles.title}>Sem vidas!</Text>
-                    <Text style={styles.subtitle}>
-                        Você ficou sem vidas. Descanse ou continue agora.
-                    </Text>
+                    <Text style={s.title}>Sem vidas!</Text>
+                    <Text style={s.subtitle}>Você ficou sem vidas. Descanse ou continue agora.</Text>
 
-                    {/* Próxima vida */}
-                    {nextRefillIn > 0 && (
-                        <View style={styles.timerBadge}>
-                            <Text style={styles.timerText}>
-                                🕐 Próxima vida em {formatTime(nextRefillIn)}
-                            </Text>
+                    {/* Timer */}
+                    {nextRefillIn>0&&(
+                        <View style={s.timerBadge}>
+                            <Clock size={14} color="#1cb0f6" strokeWidth={2.5}/>
+                            <Text style={s.timerTxt}>Próxima vida em {fmt(nextRefillIn)}</Text>
                         </View>
                     )}
 
-                    <View style={styles.divider} />
+                    <View style={s.divider}/>
 
-                    {/* Assistir anúncio */}
-                    {watching ? (
-                        <View style={styles.adContainer}>
-                            <Text style={styles.adLabel}>📺 Assistindo anúncio... {countdown}s</Text>
-                            <View style={styles.adTrack}>
-                                <Animated.View style={[styles.adBar, adBarStyle]} />
+                    {/* Ad button / watching */}
+                    {watching?(
+                        <View style={s.adContainer}>
+                            <View style={{flexDirection:'row',alignItems:'center',gap:10}}>
+                                <Tv2 size={20} color="#1cb0f6" strokeWidth={2.5}/>
+                                <Text style={s.adLabel}>Assistindo... {countdown}s</Text>
                             </View>
-                            <Text style={styles.adHint}>Não feche esta tela!</Text>
+                            <View style={s.adTrack}>
+                                <Animated.View style={[s.adBar,adBarStyle]}/>
+                            </View>
+                            <Text style={s.adHint}>Não feche esta tela!</Text>
                         </View>
-                    ) : (
-                        <TouchableOpacity style={styles.adBtn} onPress={startWatchingAd} activeOpacity={0.85}>
-                            <Text style={styles.adBtnIcon}>▶</Text>
-                            <View>
-                                <Text style={styles.adBtnTitle}>Assistir anúncio</Text>
-                                <Text style={styles.adBtnSub}>Ganhe +1 ❤️ grátis</Text>
+                    ):(
+                        <TouchableOpacity style={s.adBtn} onPress={startAd} activeOpacity={0.85}>
+                            <View style={[s.adIcon,{backgroundColor:'#1cb0f620'}]}>
+                                <Play size={20} color="#1cb0f6" fill="#1cb0f6" strokeWidth={2}/>
                             </View>
+                            <View style={{flex:1}}>
+                                <Text style={s.adBtnTitle}>Assistir anúncio</Text>
+                                <Text style={s.adBtnSub}>Ganhe +1 vida grátis</Text>
+                            </View>
+                            <Heart size={18} color="#ff4b4b" fill="#ff4b4b" strokeWidth={2}/>
                         </TouchableOpacity>
                     )}
 
                     {/* Premium */}
-                    <TouchableOpacity style={styles.premiumBtn} onPress={handlePremium} activeOpacity={0.85}>
-                        <Text style={styles.premiumIcon}>⚡</Text>
-                        <View>
-                            <Text style={styles.premiumTitle}>Premium — 24 horas</Text>
-                            <Text style={styles.premiumSub}>Vidas infinitas por 24h</Text>
+                    <TouchableOpacity style={s.premiumBtn} onPress={handlePremium} activeOpacity={0.85}>
+                        <View style={[s.adIcon,{backgroundColor:'#ffc80020'}]}>
+                            <Zap size={20} color="#ffc800" fill="#ffc800" strokeWidth={2}/>
                         </View>
-                        <View style={styles.premiumBadge}>
-                            <Text style={styles.premiumBadgeText}>∞</Text>
+                        <View style={{flex:1}}>
+                            <Text style={s.premiumTitle}>Vidas infinitas — 24h</Text>
+                            <Text style={s.premiumSub}>Estude sem interrupções</Text>
+                        </View>
+                        <View style={s.infBadge}>
+                            <Text style={s.infBadgeTxt}>∞</Text>
                         </View>
                     </TouchableOpacity>
 
-                    {/* Fechar */}
-                    <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
-                        <Text style={styles.closeBtnText}>Fechar — esperar recarregar</Text>
+                    <TouchableOpacity style={s.closeBtn} onPress={onClose}>
+                        <Text style={s.closeBtnTxt}>Fechar — esperar recarregar</Text>
                     </TouchableOpacity>
 
                 </Animated.View>
@@ -152,160 +137,30 @@ export default function NoLivesModal({ visible, onClose, onLifeRestored }: NoLiv
     );
 }
 
-const styles = StyleSheet.create({
-    overlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.8)',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 20,
-    },
-    card: {
-        backgroundColor: '#16151d',
-        borderRadius: 24,
-        padding: 28,
-        width: '100%',
-        borderWidth: 1,
-        borderColor: '#2a2040',
-        alignItems: 'center',
-        gap: 16,
-    },
-    heartsRow: {
-        flexDirection: 'row',
-        gap: 8,
-    },
-    heartIcon: {
-        fontSize: 28,
-        opacity: 0.3,
-    },
-    heartFull: {
-        opacity: 1,
-    },
-    title: {
-        color: '#fff',
-        fontSize: 24,
-        fontWeight: '900',
-        letterSpacing: -0.5,
-    },
-    subtitle: {
-        color: '#7a7590',
-        fontSize: 14,
-        textAlign: 'center',
-        lineHeight: 20,
-    },
-    timerBadge: {
-        backgroundColor: '#1e1c2e',
-        borderRadius: 20,
-        paddingHorizontal: 14,
-        paddingVertical: 7,
-        borderWidth: 1,
-        borderColor: '#2a2040',
-    },
-    timerText: {
-        color: '#8b5cf6',
-        fontSize: 13,
-        fontWeight: '700',
-    },
-    divider: {
-        width: '100%',
-        height: 1,
-        backgroundColor: '#2a2040',
-    },
-    adBtn: {
-        width: '100%',
-        backgroundColor: '#06b6d415',
-        borderRadius: 16,
-        padding: 16,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 14,
-        borderWidth: 1,
-        borderColor: '#06b6d430',
-    },
-    adBtnIcon: {
-        fontSize: 22,
-        color: '#06b6d4',
-    },
-    adBtnTitle: {
-        color: '#fff',
-        fontSize: 15,
-        fontWeight: '700',
-    },
-    adBtnSub: {
-        color: '#06b6d4',
-        fontSize: 12,
-        fontWeight: '600',
-    },
-    adContainer: {
-        width: '100%',
-        gap: 10,
-        alignItems: 'center',
-    },
-    adLabel: {
-        color: '#06b6d4',
-        fontSize: 14,
-        fontWeight: '700',
-    },
-    adTrack: {
-        width: '100%',
-        height: 8,
-        backgroundColor: '#1a1826',
-        borderRadius: 4,
-        overflow: 'hidden',
-    },
-    adBar: {
-        height: '100%',
-        backgroundColor: '#06b6d4',
-        borderRadius: 4,
-    },
-    adHint: {
-        color: '#44415a',
-        fontSize: 11,
-    },
-    premiumBtn: {
-        width: '100%',
-        backgroundColor: '#8b5cf615',
-        borderRadius: 16,
-        padding: 16,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 14,
-        borderWidth: 1,
-        borderColor: '#8b5cf630',
-    },
-    premiumIcon: {
-        fontSize: 22,
-    },
-    premiumTitle: {
-        color: '#fff',
-        fontSize: 15,
-        fontWeight: '700',
-    },
-    premiumSub: {
-        color: '#8b5cf6',
-        fontSize: 12,
-        fontWeight: '600',
-    },
-    premiumBadge: {
-        marginLeft: 'auto',
-        backgroundColor: '#8b5cf6',
-        borderRadius: 12,
-        width: 30,
-        height: 30,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    premiumBadgeText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '900',
-    },
-    closeBtn: {
-        paddingVertical: 8,
-    },
-    closeBtnText: {
-        color: '#44415a',
-        fontSize: 12,
-        fontWeight: '600',
-    },
+const s = StyleSheet.create({
+    overlay:      { flex:1, backgroundColor:'rgba(0,0,0,0.82)', alignItems:'center', justifyContent:'center', padding:20 },
+    card:         { backgroundColor:'#131f24', borderRadius:28, padding:28, width:'100%', borderWidth:2, borderColor:'#212b31', borderBottomWidth:7, borderBottomColor:'#0d161a', alignItems:'center', gap:16 },
+    closeX:       { position:'absolute', top:16, right:16, padding:4 },
+    heartsRow:    { flexDirection:'row', gap:8, marginTop:8 },
+    title:        { color:'#fff', fontSize:26, fontWeight:'900', letterSpacing:-0.5 },
+    subtitle:     { color:'#afb6b9', fontSize:14, textAlign:'center', lineHeight:20, fontWeight:'600' },
+    timerBadge:   { flexDirection:'row', alignItems:'center', gap:8, backgroundColor:'#1cb0f620', borderRadius:16, paddingHorizontal:14, paddingVertical:8, borderWidth:2, borderColor:'#1cb0f640' },
+    timerTxt:     { color:'#1cb0f6', fontSize:13, fontWeight:'800' },
+    divider:      { width:'100%', height:2, backgroundColor:'#212b31' },
+    adBtn:        { width:'100%', backgroundColor:'#16151d', borderRadius:20, padding:18, flexDirection:'row', alignItems:'center', gap:14, borderWidth:2, borderColor:'#212b31', borderBottomWidth:5, borderBottomColor:'#161c20' },
+    adIcon:       { width:44, height:44, borderRadius:22, alignItems:'center', justifyContent:'center' },
+    adBtnTitle:   { color:'#fff', fontSize:15, fontWeight:'800' },
+    adBtnSub:     { color:'#1cb0f6', fontSize:12, fontWeight:'700', marginTop:2 },
+    adContainer:  { width:'100%', gap:12, alignItems:'center' },
+    adLabel:      { color:'#1cb0f6', fontSize:14, fontWeight:'800' },
+    adTrack:      { width:'100%', height:10, backgroundColor:'#212b31', borderRadius:5, overflow:'hidden' },
+    adBar:        { height:'100%', backgroundColor:'#1cb0f6', borderRadius:5 },
+    adHint:       { color:'#6b6880', fontSize:11, fontWeight:'600' },
+    premiumBtn:   { width:'100%', backgroundColor:'#16151d', borderRadius:20, padding:18, flexDirection:'row', alignItems:'center', gap:14, borderWidth:2, borderColor:'#ffc80030', borderBottomWidth:5, borderBottomColor:'#161c20' },
+    premiumTitle: { color:'#fff', fontSize:15, fontWeight:'800' },
+    premiumSub:   { color:'#ffc800', fontSize:12, fontWeight:'700', marginTop:2 },
+    infBadge:     { backgroundColor:'#ffc800', borderRadius:14, width:32, height:32, alignItems:'center', justifyContent:'center', borderBottomWidth:3, borderBottomColor:'#e5b400' },
+    infBadgeTxt:  { color:'#fff', fontSize:16, fontWeight:'900' },
+    closeBtn:     { paddingVertical:8 },
+    closeBtnTxt:  { color:'#6b6880', fontSize:12, fontWeight:'700' },
 });

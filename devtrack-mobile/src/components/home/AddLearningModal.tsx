@@ -1,18 +1,17 @@
 // src/components/home/AddLearningModal.tsx
-// Modal de 3 etapas pra registrar um aprendizado de forma estruturada.
-// A ideia é que o usuário não precise pensar no que escrever —
-// área → stack → tipo já gera um texto pronto. Ele só edita se quiser.
+// Modal fullscreen de 3 etapas — igual ao estilo das atividades/trilhas.
+// Área → Stack → Tipo gera texto automaticamente.
 
 import React, { useState, useCallback, useEffect } from 'react';
 import {
     Modal, View, Text, StyleSheet, TouchableOpacity,
     TextInput, Pressable, ScrollView, Dimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, {
-    FadeInDown, FadeInRight, FadeOutLeft, FadeOutRight,
+    FadeInDown, FadeInRight, FadeOutLeft,
     SlideInRight, SlideOutLeft, SlideInLeft, SlideOutRight,
-    useSharedValue, useAnimatedStyle, withSpring, withTiming,
-    interpolateColor,
+    useSharedValue, useAnimatedStyle, withTiming,
 } from 'react-native-reanimated';
 import {
     X, Check, ChevronRight, ChevronLeft,
@@ -22,13 +21,11 @@ import {
 
 const { width: SW } = Dimensions.get('window');
 
-// ─── Tipos internos do modal ──────────────────────────────────────────────────
+// ─── Tipos internos ────────────────────────────────────────────────────────────
 type Area         = { id: string; label: string; emoji: string; color: string; Icon: any };
 type Stack        = { id: string; label: string; area: string[] };
 type LearningType = { id: string; label: string; emoji: string; template: string; Icon: any };
 
-// 6 áreas — mais amplo que as 3 do AREA_CONFIG porque aqui é contexto de registro,
-// não de perfil. O mapeamento pra StudyArea acontece na HomeScreen.
 const AREAS: Area[] = [
     { id: 'frontend',  label: 'Frontend',  emoji: '🎨', color: '#06b6d4', Icon: Code2       },
     { id: 'backend',   label: 'Backend',   emoji: '⚙️', color: '#10b981', Icon: Server      },
@@ -38,9 +35,7 @@ const AREAS: Area[] = [
     { id: 'security',  label: 'Security',  emoji: '🔐', color: '#ef4444', Icon: Shield      },
 ];
 
-// Cada stack tem um array de áreas compatíveis pra filtrar no passo 2
 const STACKS: Stack[] = [
-    // Frontend
     { id: 'React',          label: 'React',          area: ['frontend', 'fullstack'] },
     { id: 'React Native',   label: 'React Native',   area: ['mobile', 'frontend', 'fullstack'] },
     { id: 'TypeScript',     label: 'TypeScript',     area: ['frontend', 'backend', 'fullstack', 'mobile'] },
@@ -49,7 +44,6 @@ const STACKS: Stack[] = [
     { id: 'Tailwind',       label: 'Tailwind',       area: ['frontend'] },
     { id: 'Vue',            label: 'Vue',            area: ['frontend', 'fullstack'] },
     { id: 'HTML',           label: 'HTML',           area: ['frontend'] },
-    // Backend
     { id: 'Node.js',        label: 'Node.js',        area: ['backend', 'fullstack'] },
     { id: 'Python',         label: 'Python',         area: ['backend', 'fullstack', 'devops'] },
     { id: 'PostgreSQL',     label: 'PostgreSQL',     area: ['backend', 'fullstack'] },
@@ -58,22 +52,18 @@ const STACKS: Stack[] = [
     { id: 'REST API',       label: 'REST API',       area: ['backend', 'fullstack'] },
     { id: 'Java',           label: 'Java',           area: ['backend'] },
     { id: 'Go',             label: 'Go',             area: ['backend', 'devops'] },
-    // DevOps
     { id: 'Docker',         label: 'Docker',         area: ['devops', 'backend'] },
     { id: 'AWS',            label: 'AWS',            area: ['devops', 'backend'] },
     { id: 'Git',            label: 'Git',            area: ['frontend', 'backend', 'fullstack', 'devops', 'mobile', 'security'] },
     { id: 'CI/CD',          label: 'CI/CD',          area: ['devops'] },
     { id: 'Firebase',       label: 'Firebase',       area: ['mobile', 'frontend', 'fullstack'] },
-    // Mobile
     { id: 'Expo',           label: 'Expo',           area: ['mobile'] },
     { id: 'Swift',          label: 'Swift',          area: ['mobile'] },
     { id: 'Kotlin',         label: 'Kotlin',         area: ['mobile'] },
-    // Security
     { id: 'JWT',            label: 'JWT',            area: ['security', 'backend'] },
     { id: 'OAuth',          label: 'OAuth',          area: ['security', 'backend'] },
 ];
 
-// Templates com {stack} como placeholder — substituído no buildText
 const LEARNING_TYPES: LearningType[] = [
     { id: 'concept',  label: 'Conceito',       emoji: '💡', template: 'Aprendi o conceito de {stack}',       Icon: Lightbulb },
     { id: 'bug',      label: 'Bug resolvido',  emoji: '🐛', template: 'Resolvi um bug em {stack}',           Icon: Bug       },
@@ -83,9 +73,6 @@ const LEARNING_TYPES: LearningType[] = [
     { id: 'review',   label: 'Revisão',        emoji: '👁',  template: 'Revisei conceitos de {stack}',        Icon: Eye       },
 ];
 
-// ─── Helper ───────────────────────────────────────────────────────────────────
-// Monta o texto legível a partir do tipo + stacks selecionados.
-// "React, TypeScript e Next.js" > "React, TypeScript, Next.js" — a vírgula antes do "e" some.
 function buildText(type: LearningType, stacks: string[]): string {
     const stackLabel = stacks.length === 0 ? 'programação'
         : stacks.length === 1 ? stacks[0]
@@ -93,46 +80,37 @@ function buildText(type: LearningType, stacks: string[]): string {
     return type.template.replace('{stack}', stackLabel);
 }
 
-// ─── Indicador de progresso (bolinhas) ───────────────────────────────────────
-// A bolinha ativa estica pra virar uma pílula — detalhe visual pequeno mas bonito
-function StepDots({ step, total }: { step: number; total: number }) {
+// ─── Barra de progresso ────────────────────────────────────────────────────────
+function ProgressBar({ step, total, color }: { step: number; total: number; color: string }) {
+    const prog = useSharedValue(0);
+    prog.value = withTiming(step / total, { duration: 400 });
+    const barStyle = useAnimatedStyle(() => ({ width: `${prog.value * 100}%` as any }));
     return (
-        <View style={s.stepDots}>
-            {Array.from({ length: total }).map((_, i) => (
-                <View
-                    key={i}
-                    style={[
-                        s.stepDot,
-                        i < step  && s.stepDotDone,    // passos anteriores: contorno roxo
-                        i === step && s.stepDotActive,  // passo atual: pílula cheia
-                    ]}
-                />
-            ))}
+        <View style={fs.progressTrack}>
+            <Animated.View style={[fs.progressBar, { backgroundColor: color }, barStyle]} />
         </View>
     );
 }
 
-// ─── Passo 1 — Área ───────────────────────────────────────────────────────────
-// Toque em uma área avança direto pro passo 2, sem botão de confirmar
+// ─── Passo 1 — Área ────────────────────────────────────────────────────────────
 function StepArea({ onSelect }: { onSelect: (a: Area) => void }) {
     return (
-        <Animated.View entering={SlideInRight.duration(280)} exiting={SlideOutLeft.duration(200)} style={s.stepWrap}>
-            <Text style={s.stepTitle}>Qual área?</Text>
-            <Text style={s.stepSub}>Selecione a área do que você aprendeu</Text>
-            <View style={s.areaGrid}>
+        <Animated.View entering={SlideInRight.duration(280)} exiting={SlideOutLeft.duration(200)} style={fs.stepWrap}>
+            <Text style={fs.stepTitle}>Qual área?</Text>
+            <Text style={fs.stepSub}>Selecione a área do que você aprendeu hoje</Text>
+            <View style={fs.areaGrid}>
                 {AREAS.map((area, i) => (
-                    // delay escalonado nos cards — entrada em cascata
-                    <Animated.View key={area.id} entering={FadeInDown.delay(i * 45).duration(300).springify()}>
+                    <Animated.View key={area.id} entering={FadeInDown.delay(i * 50).duration(350).springify()}>
                         <TouchableOpacity
-                            style={[s.areaCard, { borderColor: area.color + '40' }]}
+                            style={[fs.areaCard, { borderColor: area.color + '50', borderBottomColor: area.color + '80' }]}
                             onPress={() => onSelect(area)}
                             activeOpacity={0.75}
                         >
-                            <View style={[s.areaIconWrap, { backgroundColor: area.color + '18' }]}>
-                                <area.Icon size={22} color={area.color} strokeWidth={2} />
+                            <View style={[fs.areaIconWrap, { backgroundColor: area.color + '20' }]}>
+                                <area.Icon size={26} color={area.color} strokeWidth={2.5} />
                             </View>
-                            <Text style={s.areaEmoji}>{area.emoji}</Text>
-                            <Text style={[s.areaLabel, { color: area.color }]}>{area.label}</Text>
+                            <Text style={fs.areaEmoji}>{area.emoji}</Text>
+                            <Text style={[fs.areaLabel, { color: area.color }]}>{area.label}</Text>
                         </TouchableOpacity>
                     </Animated.View>
                 ))}
@@ -141,9 +119,7 @@ function StepArea({ onSelect }: { onSelect: (a: Area) => void }) {
     );
 }
 
-// ─── Passo 2 — Stacks ─────────────────────────────────────────────────────────
-// Seleção múltipla — o botão muda o label pra mostrar quantos foram selecionados.
-// "Pular" disponível pra quem não quer categorizar.
+// ─── Passo 2 — Stacks ──────────────────────────────────────────────────────────
 function StepStack({
     area, selected, onToggle, onNext, onBack,
 }: {
@@ -156,46 +132,46 @@ function StepStack({
     const filtered = STACKS.filter(s => s.area.includes(area.id));
 
     return (
-        <Animated.View entering={SlideInRight.duration(280)} exiting={SlideOutLeft.duration(200)} style={s.stepWrap}>
-            <Text style={s.stepTitle}>Qual stack?</Text>
-            <Text style={s.stepSub}>Pode selecionar mais de uma</Text>
+        <Animated.View entering={SlideInRight.duration(280)} exiting={SlideOutLeft.duration(200)} style={fs.stepWrap}>
+            <Text style={fs.stepTitle}>Qual stack?</Text>
+            <Text style={fs.stepSub}>Pode selecionar mais de uma tecnologia</Text>
 
-            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 280 }} contentContainerStyle={s.stackList}>
+            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 360 }} contentContainerStyle={fs.stackList}>
                 {filtered.map((stack, i) => {
                     const active = selected.includes(stack.id);
                     return (
-                        <Animated.View key={stack.id} entering={FadeInDown.delay(i * 30).duration(260)}>
+                        <Animated.View key={stack.id} entering={FadeInDown.delay(i * 25).duration(260)}>
                             <TouchableOpacity
-                                style={[s.stackChip, active && { backgroundColor: area.color + '20', borderColor: area.color + '70' }]}
+                                style={[fs.stackChip, active && { backgroundColor: area.color + '18', borderColor: area.color + '60', borderBottomColor: area.color + '40' }]}
                                 onPress={() => onToggle(stack.id)}
                                 activeOpacity={0.7}
                             >
-                                {/* checkbox customizado — mais bonito que o nativo */}
-                                <View style={[s.stackCheck, active && { backgroundColor: area.color, borderColor: area.color }]}>
-                                    {active && <Check size={11} color="#fff" strokeWidth={3} />}
+                                <View style={[fs.stackCheck, active && { backgroundColor: area.color, borderColor: area.color }]}>
+                                    {active && <Check size={12} color="#fff" strokeWidth={3} />}
                                 </View>
-                                <Text style={[s.stackLabel, active && { color: area.color, fontWeight: '700' }]}>
+                                <Text style={[fs.stackLabel, active && { color: area.color, fontWeight: '800' }]}>
                                     {stack.label}
                                 </Text>
+                                {active && <View style={[fs.stackActiveDot, { backgroundColor: area.color }]} />}
                             </TouchableOpacity>
                         </Animated.View>
                     );
                 })}
             </ScrollView>
 
-            <View style={s.navRow}>
-                <TouchableOpacity style={s.backBtn} onPress={onBack}>
-                    <ChevronLeft size={16} color="#6b6880" strokeWidth={2} />
-                    <Text style={s.backBtnText}>Voltar</Text>
+            <View style={fs.navRow}>
+                <TouchableOpacity style={fs.backBtn} onPress={onBack}>
+                    <ChevronLeft size={18} color="#6b6880" strokeWidth={2.5} />
+                    <Text style={fs.backBtnText}>Voltar</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                    style={[s.nextBtn, { backgroundColor: area.color }]}
+                    style={[fs.nextBtn, { backgroundColor: area.color, borderBottomColor: area.color + 'aa' }]}
                     onPress={onNext}
                 >
-                    <Text style={s.nextBtnText}>
+                    <Text style={fs.nextBtnText}>
                         {selected.length === 0 ? 'Pular' : `Continuar (${selected.length})`}
                     </Text>
-                    <ChevronRight size={16} color="#fff" strokeWidth={2.5} />
+                    <ChevronRight size={18} color="#fff" strokeWidth={2.5} />
                 </TouchableOpacity>
             </View>
         </Animated.View>
@@ -203,8 +179,6 @@ function StepStack({
 }
 
 // ─── Passo 3 — Tipo + texto ────────────────────────────────────────────────────
-// Gera o texto automaticamente ao selecionar o tipo.
-// O botão "Editar" troca o preview por um TextInput — experiência fluida.
 function StepType({
     area, stacks, onSave, onBack,
 }: {
@@ -218,42 +192,41 @@ function StepType({
     const [editingText, setEditingText]   = useState(false);
 
     const generatedText = selectedType ? buildText(selectedType, stacks) : '';
-    // usa o texto customizado se o usuário editou, senão usa o gerado
     const finalText     = editingText ? customText : generatedText;
 
     const handleTypeSelect = (t: LearningType) => {
         setSelectedType(t);
-        setCustomText(buildText(t, stacks));  // pré-preenche o campo de edição
+        setCustomText(buildText(t, stacks));
         setEditingText(false);
     };
 
     const handleSave = () => {
         const text = finalText.trim();
-        if (!text) return;  // não salva vazio
-        onSave(text, {
-            area:   area.id,
-            stacks,
-            type:   selectedType?.id ?? 'custom',
-        });
+        if (!text) return;
+        onSave(text, { area: area.id, stacks, type: selectedType?.id ?? 'custom' });
     };
 
     return (
-        <Animated.View entering={SlideInRight.duration(280)} exiting={SlideOutLeft.duration(200)} style={s.stepWrap}>
-            <Text style={s.stepTitle}>Que tipo?</Text>
-            <Text style={s.stepSub}>Como foi esse aprendizado?</Text>
+        <Animated.View entering={SlideInRight.duration(280)} exiting={SlideOutLeft.duration(200)} style={fs.stepWrap}>
+            <Text style={fs.stepTitle}>Como foi?</Text>
+            <Text style={fs.stepSub}>Selecione o tipo do seu aprendizado</Text>
 
-            <View style={s.typeGrid}>
+            <View style={fs.typeGrid}>
                 {LEARNING_TYPES.map((t, i) => {
                     const active = selectedType?.id === t.id;
+                    const TIcon  = t.Icon;
                     return (
-                        <Animated.View key={t.id} entering={FadeInDown.delay(i * 40).duration(280)}>
+                        <Animated.View key={t.id} entering={FadeInDown.delay(i * 45).duration(300)}>
                             <TouchableOpacity
-                                style={[s.typeCard, active && { borderColor: area.color, backgroundColor: area.color + '14' }]}
+                                style={[fs.typeCard, active && { borderColor: area.color, backgroundColor: area.color + '18', borderBottomColor: area.color + '80' }]}
                                 onPress={() => handleTypeSelect(t)}
                                 activeOpacity={0.75}
                             >
-                                <Text style={s.typeEmoji}>{t.emoji}</Text>
-                                <Text style={[s.typeLabel, active && { color: area.color, fontWeight: '700' }]}>
+                                <View style={[fs.typeIconWrap, active && { backgroundColor: area.color + '25' }]}>
+                                    <TIcon size={22} color={active ? area.color : '#6b6880'} strokeWidth={2.5} />
+                                </View>
+                                <Text style={fs.typeEmoji}>{t.emoji}</Text>
+                                <Text style={[fs.typeLabel, active && { color: area.color, fontWeight: '800' }]}>
                                     {t.label}
                                 </Text>
                             </TouchableOpacity>
@@ -262,19 +235,17 @@ function StepType({
                 })}
             </View>
 
-            {/* Preview do texto gerado — aparece com animação depois de selecionar o tipo */}
             {selectedType && (
-                <Animated.View entering={FadeInDown.duration(300)} style={s.previewWrap}>
-                    <View style={s.previewHeader}>
-                        <Text style={s.previewLabel}>Registro gerado</Text>
-                        <TouchableOpacity onPress={() => { setEditingText(true); }}>
-                            <Text style={[s.previewEdit, { color: area.color }]}>Editar</Text>
+                <Animated.View entering={FadeInDown.duration(300)} style={[fs.previewWrap, { borderColor: area.color + '40' }]}>
+                    <View style={fs.previewHeader}>
+                        <Text style={[fs.previewLabel, { color: area.color + '99' }]}>REGISTRO GERADO</Text>
+                        <TouchableOpacity onPress={() => setEditingText(true)} style={[fs.previewEditBtn, { borderColor: area.color + '40' }]}>
+                            <Text style={[fs.previewEdit, { color: area.color }]}>Editar</Text>
                         </TouchableOpacity>
                     </View>
                     {editingText ? (
-                        // TextInput aparece com autoFocus quando usuário clica em "Editar"
                         <TextInput
-                            style={[s.previewInput, { borderColor: area.color + '50' }]}
+                            style={[fs.previewInput, { borderColor: area.color + '50' }]}
                             value={customText}
                             onChangeText={setCustomText}
                             multiline
@@ -282,46 +253,46 @@ function StepType({
                             placeholderTextColor="#555"
                         />
                     ) : (
-                        // toque no texto também ativa a edição — mais intuitivo
                         <TouchableOpacity onPress={() => setEditingText(true)}>
-                            <Text style={s.previewText}>{generatedText}</Text>
+                            <Text style={fs.previewText}>{generatedText}</Text>
                         </TouchableOpacity>
                     )}
                 </Animated.View>
             )}
 
-            <View style={s.navRow}>
-                <TouchableOpacity style={s.backBtn} onPress={onBack}>
-                    <ChevronLeft size={16} color="#6b6880" strokeWidth={2} />
-                    <Text style={s.backBtnText}>Voltar</Text>
+            <View style={fs.navRow}>
+                <TouchableOpacity style={fs.backBtn} onPress={onBack}>
+                    <ChevronLeft size={18} color="#6b6880" strokeWidth={2.5} />
+                    <Text style={fs.backBtnText}>Voltar</Text>
                 </TouchableOpacity>
-                {/* botão fica cinza até selecionar um tipo */}
                 <TouchableOpacity
-                    style={[s.nextBtn, { backgroundColor: selectedType ? area.color : '#2a2040' }]}
+                    style={[fs.nextBtn, { backgroundColor: selectedType ? area.color : '#2a2040', borderBottomColor: selectedType ? area.color + 'aa' : '#1a1435' }]}
                     onPress={handleSave}
                     disabled={!selectedType}
                 >
-                    <Check size={16} color="#fff" strokeWidth={2.5} />
-                    <Text style={s.nextBtnText}>Salvar</Text>
+                    <Check size={18} color="#fff" strokeWidth={3} />
+                    <Text style={fs.nextBtnText}>Salvar registro</Text>
                 </TouchableOpacity>
             </View>
         </Animated.View>
     );
 }
 
-// ─── Modal principal ──────────────────────────────────────────────────────────
+// ─── Modal principal — tela cheia ─────────────────────────────────────────────
 interface AddLearningModalProps {
     visible: boolean;
     onClose: () => void;
     onSave: (text: string, meta?: { area: string; stacks: string[]; type: string }) => void;
 }
 
+const STEP_LABELS = ['Área', 'Stack', 'Tipo'];
+const STEP_COLORS = ['#06b6d4', '#8b5cf6', '#10b981'];
+
 export default function AddLearningModal({ visible, onClose, onSave }: AddLearningModalProps) {
     const [step,           setStep]           = useState(0);
     const [selectedArea,   setSelectedArea]   = useState<Area | null>(null);
     const [selectedStacks, setSelectedStacks] = useState<string[]>([]);
 
-    // reseta tudo ao abrir — evita que estado de uma sessão anterior apareça
     useEffect(() => {
         if (visible) {
             setStep(0);
@@ -330,9 +301,11 @@ export default function AddLearningModal({ visible, onClose, onSave }: AddLearni
         }
     }, [visible]);
 
+    const activeColor = selectedArea?.color ?? STEP_COLORS[step] ?? '#8b5cf6';
+
     const handleAreaSelect = (area: Area) => {
         setSelectedArea(area);
-        setSelectedStacks([]);  // limpa stacks ao trocar de área
+        setSelectedStacks([]);
         setStep(1);
     };
 
@@ -348,48 +321,48 @@ export default function AddLearningModal({ visible, onClose, onSave }: AddLearni
     };
 
     return (
-        <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-            {/* Pressable no overlay fecha o modal ao tocar fora */}
-            <Pressable style={s.overlay} onPress={onClose}>
-                {/* Pressable no sheet impede que o toque no conteúdo feche o modal */}
-                <Pressable style={s.sheet} onPress={() => {}}>
+        <Modal visible={visible} animationType="slide" statusBarTranslucent presentationStyle="fullScreen">
+            <SafeAreaView style={fs.container} edges={['top', 'left', 'right']}>
 
-                    <View style={s.handle} />
-
-                    <View style={s.header}>
-                        <View>
-                            <Text style={s.headerTitle}>Novo registro</Text>
-                            <StepDots step={step} total={3} />
-                        </View>
-                        <TouchableOpacity style={s.closeBtn} onPress={onClose}>
-                            <X size={18} color="#6b6880" strokeWidth={2} />
-                        </TouchableOpacity>
+                {/* Header */}
+                <View style={fs.header}>
+                    <TouchableOpacity style={fs.closeBtn} onPress={onClose}>
+                        <X size={22} color="#afb6b9" strokeWidth={2.5} />
+                    </TouchableOpacity>
+                    <View style={fs.headerCenter}>
+                        <Text style={fs.headerTitle}>Novo Registro</Text>
+                        <Text style={fs.headerStep}>{STEP_LABELS[step]} · {step + 1} de {STEP_LABELS.length}</Text>
                     </View>
-
-                    {/* Breadcrumb de contexto — mostra área e stacks selecionados */}
-                    {selectedArea && (
-                        <Animated.View entering={FadeInDown.duration(250)} style={s.breadcrumb}>
-                            <View style={[s.breadcrumbChip, { borderColor: selectedArea.color + '40', backgroundColor: selectedArea.color + '12' }]}>
-                                <selectedArea.Icon size={11} color={selectedArea.color} strokeWidth={2} />
-                                <Text style={[s.breadcrumbText, { color: selectedArea.color }]}>{selectedArea.label}</Text>
-                            </View>
-                            {selectedStacks.length > 0 && (
-                                <>
-                                    <Text style={s.breadcrumbArrow}>›</Text>
-                                    {/* mostra no máximo 3 stacks pra não estourar a linha */}
-                                    {selectedStacks.slice(0, 3).map(id => (
-                                        <View key={id} style={s.breadcrumbChipSmall}>
-                                            <Text style={s.breadcrumbSmallText}>{id}</Text>
-                                        </View>
-                                    ))}
-                                    {selectedStacks.length > 3 && (
-                                        <Text style={s.breadcrumbMore}>+{selectedStacks.length - 3}</Text>
-                                    )}
-                                </>
-                            )}
-                        </Animated.View>
+                    {/* Breadcrumb de área */}
+                    {selectedArea ? (
+                        <View style={[fs.areaBadge, { borderColor: selectedArea.color + '50', backgroundColor: selectedArea.color + '15' }]}>
+                            <selectedArea.Icon size={12} color={selectedArea.color} strokeWidth={2.5} />
+                            <Text style={[fs.areaBadgeText, { color: selectedArea.color }]}>{selectedArea.label}</Text>
+                        </View>
+                    ) : (
+                        <View style={{ width: 72 }} />
                     )}
+                </View>
 
+                {/* Progress bar */}
+                <ProgressBar step={step + 1} total={3} color={activeColor} />
+
+                {/* Stacks selecionadas (passo 2+) */}
+                {step >= 2 && selectedStacks.length > 0 && (
+                    <Animated.View entering={FadeInDown.duration(250)} style={fs.breadcrumb}>
+                        {selectedStacks.slice(0, 4).map(id => (
+                            <View key={id} style={[fs.breadcrumbChip, { borderColor: activeColor + '40', backgroundColor: activeColor + '10' }]}>
+                                <Text style={[fs.breadcrumbText, { color: activeColor }]}>{id}</Text>
+                            </View>
+                        ))}
+                        {selectedStacks.length > 4 && (
+                            <Text style={fs.breadcrumbMore}>+{selectedStacks.length - 4}</Text>
+                        )}
+                    </Animated.View>
+                )}
+
+                {/* Conteúdo das etapas */}
+                <ScrollView contentContainerStyle={fs.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                     {step === 0 && <StepArea onSelect={handleAreaSelect} />}
                     {step === 1 && selectedArea && (
                         <StepStack
@@ -408,132 +381,131 @@ export default function AddLearningModal({ visible, onClose, onSave }: AddLearni
                             onBack={() => setStep(1)}
                         />
                     )}
+                    <View style={{ height: 60 }} />
+                </ScrollView>
 
-                </Pressable>
-            </Pressable>
+            </SafeAreaView>
         </Modal>
     );
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
-const s = StyleSheet.create({
-    overlay: {
-        flex: 1,
-        backgroundColor: 'rgba(5,4,12,0.88)',
-        justifyContent: 'flex-end',
-    },
-    sheet: {
-        backgroundColor: '#13121a',
-        borderTopLeftRadius: 28,
-        borderTopRightRadius: 28,
-        paddingBottom: 40,
-        borderWidth: 1,
-        borderColor: '#2a2040',
-        maxHeight: '90%',
-    },
-    handle: {
-        width: 36, height: 4, borderRadius: 2,
-        backgroundColor: '#2a2040',
-        alignSelf: 'center', marginTop: 12, marginBottom: 4,
-    },
-    header: {
-        flexDirection: 'row', justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8,
-    },
-    headerTitle: { color: '#fff', fontSize: 18, fontWeight: '800', marginBottom: 8 },
-    closeBtn: {
-        backgroundColor: '#1e1c2e', borderRadius: 10,
-        padding: 8, borderWidth: 1, borderColor: '#2a2040',
-    },
+const fs = StyleSheet.create({
+    container: { flex: 1, backgroundColor: '#131f24' },
 
-    stepDots: { flexDirection: 'row', gap: 5 },
-    stepDot:  { width: 6, height: 6, borderRadius: 3, backgroundColor: '#2a2040' },
-    stepDotActive: { backgroundColor: '#8b5cf6', width: 18 },  // pílula no passo atual
-    stepDotDone:   { backgroundColor: '#8b5cf620', borderWidth: 1, borderColor: '#8b5cf6' },
+    header: {
+        flexDirection: 'row', alignItems: 'center',
+        paddingHorizontal: 16, paddingVertical: 14,
+        borderBottomWidth: 2, borderBottomColor: '#212b31',
+        gap: 10,
+    },
+    closeBtn: {
+        width: 40, height: 40, borderRadius: 14,
+        backgroundColor: '#1e2b31', alignItems: 'center', justifyContent: 'center',
+        borderWidth: 2, borderColor: '#2a3940', borderBottomWidth: 4, borderBottomColor: '#161c20',
+    },
+    headerCenter: { flex: 1, alignItems: 'center' },
+    headerTitle: { color: '#fff', fontSize: 16, fontWeight: '900', letterSpacing: 0.3 },
+    headerStep:  { color: '#6b6880', fontSize: 11, fontWeight: '700', marginTop: 2, textTransform: 'uppercase' },
+
+    areaBadge: {
+        flexDirection: 'row', alignItems: 'center', gap: 5,
+        borderWidth: 1.5, borderRadius: 12,
+        paddingHorizontal: 10, paddingVertical: 5,
+    },
+    areaBadgeText: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase' },
+
+    progressTrack: { height: 6, backgroundColor: '#212b31', overflow: 'hidden' },
+    progressBar:   { height: '100%' },
 
     breadcrumb: {
         flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap',
-        gap: 6, paddingHorizontal: 20, marginBottom: 12,
+        gap: 6, paddingHorizontal: 16, paddingVertical: 10,
+        borderBottomWidth: 1, borderBottomColor: '#212b31',
     },
     breadcrumbChip: {
-        flexDirection: 'row', alignItems: 'center', gap: 5,
-        borderWidth: 1, borderRadius: 20,
+        borderWidth: 1, borderRadius: 10,
         paddingHorizontal: 10, paddingVertical: 4,
     },
     breadcrumbText: { fontSize: 12, fontWeight: '700' },
-    breadcrumbArrow: { color: '#44415a', fontSize: 14 },
-    breadcrumbChipSmall: {
-        backgroundColor: '#1e1c2e', borderRadius: 10,
-        paddingHorizontal: 8, paddingVertical: 3,
-        borderWidth: 1, borderColor: '#2a2040',
-    },
-    breadcrumbSmallText: { color: '#9aa0aa', fontSize: 11, fontWeight: '600' },
-    breadcrumbMore: { color: '#44415a', fontSize: 11 },
+    breadcrumbMore: { color: '#6b6880', fontSize: 11, fontWeight: '600' },
 
-    stepWrap: { paddingHorizontal: 20, paddingTop: 4 },
-    stepTitle: { color: '#fff', fontSize: 16, fontWeight: '800', marginBottom: 4 },
-    stepSub:   { color: '#6b6880', fontSize: 13, marginBottom: 16 },
+    scrollContent: { paddingBottom: 20 },
 
-    areaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 8 },
+    stepWrap:  { paddingHorizontal: 16, paddingTop: 20 },
+    stepTitle: { color: '#fff', fontSize: 22, fontWeight: '900', marginBottom: 6, letterSpacing: -0.3 },
+    stepSub:   { color: '#6b6880', fontSize: 14, marginBottom: 20, fontWeight: '600' },
+
+    // Área
+    areaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 8 },
     areaCard: {
-        width: (SW - 40 - 20) / 3,
-        backgroundColor: '#1a1826',
-        borderRadius: 18, borderWidth: 1,
-        paddingVertical: 16, alignItems: 'center', gap: 6,
+        width: (SW - 32 - 24) / 3,
+        backgroundColor: '#16151d',
+        borderRadius: 20, borderWidth: 2, borderBottomWidth: 5,
+        paddingVertical: 18, alignItems: 'center', gap: 8,
     },
-    areaIconWrap: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-    areaEmoji:  { fontSize: 10, marginTop: -4 },
-    areaLabel:  { fontSize: 12, fontWeight: '700' },
+    areaIconWrap: { width: 50, height: 50, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+    areaEmoji:  { fontSize: 11, marginTop: -4 },
+    areaLabel:  { fontSize: 13, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.3 },
 
-    stackList: { gap: 8, paddingBottom: 8 },
+    // Stack
+    stackList: { gap: 10, paddingBottom: 8 },
     stackChip: {
-        flexDirection: 'row', alignItems: 'center', gap: 12,
-        backgroundColor: '#1a1826', borderRadius: 14, padding: 14,
-        borderWidth: 1, borderColor: '#2a2040',
+        flexDirection: 'row', alignItems: 'center', gap: 14,
+        backgroundColor: '#16151d', borderRadius: 16, padding: 16,
+        borderWidth: 2, borderColor: '#212b31', borderBottomWidth: 4, borderBottomColor: '#161c20',
     },
     stackCheck: {
-        width: 20, height: 20, borderRadius: 6,
-        borderWidth: 1.5, borderColor: '#2a2040',
+        width: 22, height: 22, borderRadius: 7,
+        borderWidth: 2, borderColor: '#37464f',
         alignItems: 'center', justifyContent: 'center',
     },
-    stackLabel: { color: '#d4d0e8', fontSize: 14, fontWeight: '500' },
+    stackLabel:     { color: '#d4d0e8', fontSize: 15, fontWeight: '600', flex: 1 },
+    stackActiveDot: { width: 8, height: 8, borderRadius: 4 },
 
-    typeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, marginBottom: 16 },
+    // Tipo
+    typeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 },
     typeCard: {
-        width: (SW - 40 - 18) / 3,
-        backgroundColor: '#1a1826', borderRadius: 14, borderWidth: 1,
-        borderColor: '#2a2040', paddingVertical: 14,
-        alignItems: 'center', gap: 5,
+        width: (SW - 32 - 20) / 3,
+        backgroundColor: '#16151d', borderRadius: 18, borderWidth: 2,
+        borderColor: '#212b31', borderBottomWidth: 5, borderBottomColor: '#161c20',
+        paddingVertical: 16, alignItems: 'center', gap: 6,
     },
-    typeEmoji: { fontSize: 20 },
-    typeLabel: { color: '#9aa0aa', fontSize: 11, fontWeight: '600', textAlign: 'center' },
+    typeIconWrap: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#212b31' },
+    typeEmoji:   { fontSize: 16 },
+    typeLabel:   { color: '#6b6880', fontSize: 11, fontWeight: '600', textAlign: 'center' },
 
+    // Preview
     previewWrap: {
-        backgroundColor: '#0d0d10', borderRadius: 14, padding: 14,
-        borderWidth: 1, borderColor: '#2a2040', marginBottom: 16,
+        backgroundColor: '#16151d', borderRadius: 18, padding: 16,
+        borderWidth: 2, borderBottomWidth: 5, borderBottomColor: '#161c20',
+        marginBottom: 16,
     },
-    previewHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-    previewLabel:  { color: '#44415a', fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6 },
-    previewEdit:   { fontSize: 12, fontWeight: '700' },
-    previewText:   { color: '#d4d0e8', fontSize: 14, lineHeight: 21 },
+    previewHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+    previewLabel:  { fontSize: 10, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.8 },
+    previewEditBtn:{ borderWidth: 1.5, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4 },
+    previewEdit:   { fontSize: 12, fontWeight: '800' },
+    previewText:   { color: '#fff', fontSize: 15, lineHeight: 22, fontWeight: '600' },
     previewInput: {
-        color: '#d4d0e8', fontSize: 14, lineHeight: 21,
-        borderWidth: 1, borderRadius: 10, padding: 10,
-        minHeight: 60, textAlignVertical: 'top',
+        color: '#fff', fontSize: 15, lineHeight: 22, fontWeight: '600',
+        borderWidth: 2, borderRadius: 12, padding: 12,
+        minHeight: 70, textAlignVertical: 'top', backgroundColor: '#212b31',
+        borderColor: '#37464f',
     },
 
-    navRow: { flexDirection: 'row', gap: 10, marginTop: 4 },
+    // Nav
+    navRow: { flexDirection: 'row', gap: 12, marginTop: 8 },
     backBtn: {
-        flexDirection: 'row', alignItems: 'center', gap: 4,
-        backgroundColor: '#1a1826', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14,
-        borderWidth: 1, borderColor: '#2a2040',
+        flexDirection: 'row', alignItems: 'center', gap: 6,
+        backgroundColor: '#16151d', borderRadius: 16, paddingHorizontal: 18, paddingVertical: 16,
+        borderWidth: 2, borderColor: '#212b31', borderBottomWidth: 5, borderBottomColor: '#161c20',
     },
-    backBtnText: { color: '#6b6880', fontSize: 14, fontWeight: '600' },
+    backBtnText: { color: '#6b6880', fontSize: 15, fontWeight: '700' },
     nextBtn: {
         flex: 1, flexDirection: 'row', alignItems: 'center',
-        justifyContent: 'center', gap: 6,
-        borderRadius: 14, paddingVertical: 14,
+        justifyContent: 'center', gap: 8,
+        borderRadius: 16, paddingVertical: 16,
+        borderBottomWidth: 5,
     },
-    nextBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+    nextBtnText: { color: '#fff', fontSize: 16, fontWeight: '900', letterSpacing: 0.5 },
 });

@@ -1,7 +1,9 @@
 package com.devtrack.web.controllers;
 
+import com.devtrack.application.dtos.RankingUserDTO;
 import com.devtrack.application.dtos.UpdateProfileDTO;
 import com.devtrack.application.dtos.UserDTO;
+import com.devtrack.application.usecases.GetRanking;
 import com.devtrack.application.usecases.GetUserProfile;
 import com.devtrack.application.usecases.UpdateUserProfile;
 import com.devtrack.infrastructure.security.CustomUserDetails;
@@ -14,6 +16,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 // controller de perfil — endpoints de usuário, todos protegidos por JWT
 @RestController
 @RequestMapping("/api/v1/users")
@@ -24,6 +28,7 @@ public class UserController {
 
     private final GetUserProfile getUserProfile;
     private final UpdateUserProfile updateUserProfile;
+    private final GetRanking getRanking;
 
     // GET /api/v1/users/me — retorna o perfil do usuário logado com a streak
     @GetMapping("/me")
@@ -54,5 +59,18 @@ public class UserController {
     ) {
         String userId = ((CustomUserDetails) userDetails).getId();
         return ResponseEntity.ok(updateUserProfile.updateLives(userId, body.get("action")));
+    }
+
+    // GET /api/v1/users/ranking?sortBy=streak&limit=50
+    // Ranking global de todos os usuários cadastrados
+    // Parâmetros opcionais: sortBy = "streak" | "xp" | "learnings" (padrão: streak)
+    //                       limit = número de resultados (padrão: 50)
+    @GetMapping("/ranking")
+    @Operation(summary = "Ranking global dos usuários")
+    public ResponseEntity<List<RankingUserDTO>> getRanking(
+            @RequestParam(defaultValue = "streak") String sortBy,
+            @RequestParam(defaultValue = "50") int limit
+    ) {
+        return ResponseEntity.ok(getRanking.execute(sortBy, Math.min(limit, 100)));
     }
 }

@@ -14,10 +14,10 @@ import Animated, {
 } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
-    LogOut, Edit2, Link,
+    LogOut, Edit2, Link, Camera,
     Flame, BookOpen, Plus, X, Check, Save,
     RefreshCw, Trophy, Zap, Star, TrendingUp,
-    Calendar, Award, ChevronRight, Clock, ShoppingBag,
+    Calendar, Award, ChevronRight, Clock, ShoppingBag, Settings, Lock
 } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { signOutUser } from '../services/authService';
@@ -29,8 +29,14 @@ import AvatarDisplay from '../components/avatar/AvatarDisplay';
 import AvatarShop from '../components/avatar/AvatarShop';
 import type { CosmeticType, CosmeticItem } from '../data/avatars';
 import { getAvatarLevel, getNextLevel, AVATAR_LEVELS } from '../data/avatars';
+import { useParallaxScroll } from '../hooks/useParallaxScroll';
 
 const { width: SCREEN_W } = Dimensions.get('window');
+
+const C_BG = '#131f24';
+const C_CARD = '#1a262c';
+const C_BORDER = '#212b31';
+const C_GOLD = '#ffc800';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface SocialLink   { id: string; label: string; url: string; }
@@ -45,13 +51,13 @@ interface LocalProfile {
 }
 
 const DEFAULT_LOCAL: LocalProfile = {
-    bio: '', bannerColor: '#1a1040', links: [],
+    bio: '', bannerColor: '#1cb0f6', links: [], // Duolingo Cyan default
     equippedHat: null, equippedBadge: null, equippedBackground: null,
 };
 
 const BANNER_COLORS = [
-    '#0d0b18','#1a1040','#13102a','#1e0a3a',
-    '#0a0818','#160e30','#22104a','#0d0d10',
+    '#58cc02', '#1cb0f6', '#ce82ff', '#ff9600',
+    '#ff4b4b', '#ffc800', '#2b70c9', '#000000',
 ];
 
 // ─── Badges ───────────────────────────────────────────────────────────────────
@@ -59,12 +65,12 @@ interface Badge { id: string; label: string; desc: string; Icon: any; color: str
 
 function computeBadges(streak: number, learnings: number): Badge[] {
     return [
-        { id: 'first',   label: 'Primeiro Passo', desc: '1º aprendizado',       Icon: Star,    color: '#f59e0b', unlocked: learnings >= 1   },
-        { id: 'week',    label: 'Semana Sólida',  desc: '7 dias de sequência',   Icon: Flame,   color: '#ef4444', unlocked: streak >= 7      },
-        { id: 'scholar', label: 'Estudioso',       desc: '10 registros',          Icon: BookOpen,color: '#8b5cf6', unlocked: learnings >= 10  },
-        { id: 'month',   label: 'Mês Completo',   desc: '30 dias seguidos',      Icon: Trophy,  color: '#FFD700', unlocked: streak >= 30     },
-        { id: 'master',  label: 'Mestre',          desc: '50 registros',          Icon: Award,   color: '#06b6d4', unlocked: learnings >= 50  },
-        { id: 'legend',  label: 'Lendário',        desc: '100 dias de sequência', Icon: Zap,     color: '#10b981', unlocked: streak >= 100   },
+        { id: 'first',   label: 'Primeiro Passo', desc: '1º aprendizado',       Icon: Star,    color: '#ffc800', unlocked: learnings >= 1   },
+        { id: 'week',    label: 'Semana Sólida',  desc: '7 dias de sequência',   Icon: Flame,   color: '#ff9600', unlocked: streak >= 7      },
+        { id: 'scholar', label: 'Estudioso',       desc: '10 registros',          Icon: BookOpen,color: '#ce82ff', unlocked: learnings >= 10  },
+        { id: 'month',   label: 'Mês Completo',   desc: '30 dias seguidos',      Icon: Trophy,  color: '#58cc02', unlocked: streak >= 30     },
+        { id: 'master',  label: 'Mestre',          desc: '50 registros',          Icon: Award,   color: '#1cb0f6', unlocked: learnings >= 50  },
+        { id: 'legend',  label: 'Lendário',        desc: '100 dias de sequência', Icon: Zap,     color: '#ff4b4b', unlocked: streak >= 100   },
     ];
 }
 
@@ -92,11 +98,11 @@ function buildHeatmap(learnings: LearningItem[]): { date: string; count: number 
 }
 
 function heatColor(count: number) {
-    if (count === 0) return '#1a1826';
-    if (count === 1) return '#3b1f7a';
-    if (count === 2) return '#5b2fa0';
-    if (count === 3) return '#7c3aed';
-    return '#a855f7';
+    if (count === 0) return '#212b31';
+    if (count === 1) return '#d7ffb8';
+    if (count === 2) return '#a5ed6e';
+    if (count === 3) return '#58cc02';
+    return '#58a700';
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -104,16 +110,14 @@ function ActivityHeatmap({ learnings }: { learnings: LearningItem[] }) {
     const grid  = buildHeatmap(learnings);
     const total = learnings.length;
     const days  = new Set(learnings.map(l => new Date(l.date).toDateString())).size;
-    const CELL  = Math.floor((SCREEN_W - 48 - 18) / 10) - 2;
+    const CELL  = Math.floor((SCREEN_W - 32 - 18) / 10) - 2;
 
     return (
         <Animated.View entering={FadeInDown.delay(220).duration(500).springify()} style={styles.section}>
             <View style={styles.sectionHeader}>
-                <Calendar size={15} color="#8b5cf6" strokeWidth={2} />
-                <Text style={styles.sectionTitle}>Atividade</Text>
-                <Text style={styles.sectionMeta}>{total} registros · {days} dias ativos</Text>
+                <Text style={styles.sectionTitle}>Atividade de Estudo</Text>
             </View>
-            <View style={styles.card}>
+            <View style={styles.heatmapCard}>
                 <View style={styles.heatmapGrid}>
                     {grid.map((week, wi) => (
                         <View key={wi} style={styles.heatmapCol}>
@@ -125,13 +129,6 @@ function ActivityHeatmap({ learnings }: { learnings: LearningItem[] }) {
                             ))}
                         </View>
                     ))}
-                </View>
-                <View style={styles.heatmapLegend}>
-                    <Text style={styles.heatmapLegendTxt}>Menos</Text>
-                    {[0,1,2,3,4].map(v => (
-                        <View key={v} style={[styles.heatmapLegendCell, { backgroundColor: heatColor(v) }]} />
-                    ))}
-                    <Text style={styles.heatmapLegendTxt}>Mais</Text>
                 </View>
             </View>
         </Animated.View>
@@ -154,57 +151,66 @@ function BadgeCard({ badge, delay }: { badge: Badge; delay: number }) {
 
     const cardStyle = useAnimatedStyle(() => ({
         transform: [{ scale: scale.value }],
-        shadowOpacity: interpolate(glow.value, [0,1], [badge.unlocked ? 0.15 : 0, 0.5], Extrapolation.CLAMP),
     }));
 
     return (
         <Pressable
-            onPressIn={() => (scale.value = withSpring(0.94))}
+            onPressIn={() => (scale.value = withSpring(0.96))}
             onPressOut={() => (scale.value = withSpring(1))}
+            style={{ width: '100%', marginBottom: 12 }}
         >
             <Animated.View
                 entering={FadeInDown.delay(delay).duration(400).springify()}
                 style={[
                     styles.badgeCard,
-                    badge.unlocked && { borderColor: badge.color + '45', backgroundColor: badge.color + '0c', shadowColor: badge.color },
                     cardStyle,
+                    !badge.unlocked && { opacity: 0.5, borderColor: '#212b31', borderBottomColor: '#161c20' }
                 ]}
             >
-                <View style={[styles.badgeIconWrap, { backgroundColor: badge.unlocked ? badge.color + '22' : '#1a1826' }]}>
-                    <badge.Icon size={22} color={badge.unlocked ? badge.color : '#2a2040'} strokeWidth={badge.unlocked ? 2 : 1.5} />
+                <View style={[styles.badgeIconWrap, { backgroundColor: badge.unlocked ? badge.color : '#37464f', borderBottomColor: badge.unlocked ? '#00000030' : '#212b31', borderBottomWidth: 3 }]}>
+                    <badge.Icon size={22} color={badge.unlocked ? '#fff' : '#6b6880'} strokeWidth={badge.unlocked ? 2.5 : 2} />
                 </View>
-                <Text style={[styles.badgeLabel, !badge.unlocked && styles.badgeLabelLocked]} numberOfLines={1}>
-                    {badge.label}
-                </Text>
-                <Text style={styles.badgeDesc} numberOfLines={2}>{badge.desc}</Text>
-                {badge.unlocked && <View style={[styles.badgeDot, { backgroundColor: badge.color }]} />}
+                <View style={{ flex: 1 }}>
+                    <Text style={[styles.badgeLabel, !badge.unlocked && styles.badgeLabelLocked]}>
+                        {badge.label}
+                    </Text>
+                    <Text style={styles.badgeDesc}>{badge.desc}</Text>
+                </View>
+                
+                <View style={styles.badgeProgressContainer}>
+                    {badge.unlocked ? (
+                        <Text style={styles.badgeCompleteText}>CONCLUÍDO</Text>
+                    ) : (
+                        <View style={styles.badgeLock}>
+                            <Lock size={16} color="#6b6880" strokeWidth={2.5} />
+                        </View>
+                    )}
+                </View>
             </Animated.View>
         </Pressable>
     );
 }
 
-function AnimatedBar({ label, value, max, color, delay }: {
-    label: string; value: number; max: number; color: string; delay: number;
-}) {
-    const progress = useSharedValue(0);
-    const pct = Math.min(value / max, 1);
-
-    useEffect(() => {
-        progress.value = withDelay(delay, withSpring(pct, { damping: 16, stiffness: 80 }));
-    }, [pct]);
-
-    const barStyle = useAnimatedStyle(() => ({
-        width: `${progress.value * 100}%` as any,
-    }));
-
+function StatCard({ icon: Icon, color, value, label }: { icon: any, color: string, value: string | number, label: string }) {
+    const scale = useSharedValue(1);
+    const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+    
     return (
-        <View style={styles.barRow}>
-            <Text style={styles.barLabel}>{label}</Text>
-            <View style={styles.barTrack}>
-                <Animated.View style={[styles.barFill, { backgroundColor: color }, barStyle]} />
-            </View>
-            <Text style={[styles.barValue, { color }]}>{value}</Text>
-        </View>
+        <Pressable 
+            style={styles.statCardWrapper}
+            onPressIn={() => (scale.value = withSpring(0.95))}
+            onPressOut={() => (scale.value = withSpring(1))}
+        >
+            <Animated.View style={[styles.statCard, style]}>
+                <View style={[styles.statIconWrap, { backgroundColor: color + '20' }]}>
+                    <Icon size={24} color={color} strokeWidth={2.5} />
+                </View>
+                <View style={styles.statTextWrap}>
+                    <Text style={styles.statValue}>{value}</Text>
+                    <Text style={styles.statLabel}>{label}</Text>
+                </View>
+            </Animated.View>
+        </Pressable>
     );
 }
 
@@ -242,14 +248,14 @@ function EditModal({ visible, profile, onSave, onClose, saving }: {
         <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
             <SafeAreaView style={editStyles.container} edges={['top','left','right']}>
                 <View style={editStyles.header}>
-                    <TouchableOpacity onPress={onClose} disabled={saving}>
-                        <Text style={editStyles.cancel}>Cancelar</Text>
+                    <TouchableOpacity onPress={onClose} disabled={saving} style={editStyles.headerBtn}>
+                        <Text style={editStyles.cancel}>FECHAR</Text>
                     </TouchableOpacity>
-                    <Text style={editStyles.title}>Editar Perfil</Text>
-                    <TouchableOpacity onPress={() => onSave(draft)} disabled={saving} style={editStyles.saveBtn}>
+                    <Text style={editStyles.title}>EDITAR PERFIL</Text>
+                    <TouchableOpacity onPress={() => onSave(draft)} disabled={saving} style={[editStyles.headerBtn, {alignItems: 'flex-end'}]}>
                         {saving
-                            ? <ActivityIndicator size="small" color="#8b5cf6" />
-                            : <><Save size={14} color="#8b5cf6" strokeWidth={2.5} /><Text style={editStyles.save}>Salvar</Text></>
+                            ? <ActivityIndicator size="small" color="#1cb0f6" />
+                            : <Text style={editStyles.save}>SALVAR</Text>
                         }
                     </TouchableOpacity>
                 </View>
@@ -271,13 +277,13 @@ function EditModal({ visible, profile, onSave, onClose, saving }: {
                 <ScrollView contentContainerStyle={editStyles.body} keyboardShouldPersistTaps="handled">
                     {tab === 'bio' && (
                         <>
-                            <Text style={editStyles.label}>Bio</Text>
+                            <Text style={editStyles.label}>SUA BIO</Text>
                             <TextInput
-                                style={[editStyles.input, { minHeight: 90, textAlignVertical: 'top' }]}
+                                style={[editStyles.input, { minHeight: 120, textAlignVertical: 'top' }]}
                                 value={draft.bio}
                                 onChangeText={v => setDraft(d => ({ ...d, bio: v }))}
-                                placeholder="Suas tecnologias, objetivos..."
-                                placeholderTextColor="#444"
+                                placeholder="Adicione uma bio legal..."
+                                placeholderTextColor="#4b5563"
                                 multiline
                             />
                         </>
@@ -285,23 +291,21 @@ function EditModal({ visible, profile, onSave, onClose, saving }: {
 
                     {tab === 'links' && (
                         <>
-                            <Text style={editStyles.label}>Label</Text>
-                            <TextInput style={editStyles.input} value={newLabel} onChangeText={setNewLabel} placeholder="GitHub, LinkedIn..." placeholderTextColor="#444" />
+                            <Text style={editStyles.label}>NOME DO LINK</Text>
+                            <TextInput style={editStyles.input} value={newLabel} onChangeText={setNewLabel} placeholder="GitHub, LinkedIn..." placeholderTextColor="#4b5563" />
                             <Text style={editStyles.label}>URL</Text>
-                            <TextInput style={editStyles.input} value={newUrl} onChangeText={setNewUrl} placeholder="github.com/usuario" placeholderTextColor="#444" autoCapitalize="none" keyboardType="url" />
+                            <TextInput style={editStyles.input} value={newUrl} onChangeText={setNewUrl} placeholder="github.com/usuario" placeholderTextColor="#4b5563" autoCapitalize="none" keyboardType="url" />
                             <TouchableOpacity style={editStyles.addBtn} onPress={addLink}>
-                                <Plus size={16} color="#fff" strokeWidth={2.5} />
-                                <Text style={editStyles.addBtnText}>Adicionar link</Text>
+                                <Text style={editStyles.addBtnText}>ADICIONAR LINK</Text>
                             </TouchableOpacity>
                             {draft.links.map(link => (
                                 <View key={link.id} style={editStyles.linkItem}>
-                                    <View style={editStyles.linkDot} />
                                     <View style={{ flex: 1 }}>
                                         <Text style={editStyles.linkLabel}>{link.label}</Text>
                                         <Text style={editStyles.linkUrl} numberOfLines={1}>{link.url}</Text>
                                     </View>
                                     <TouchableOpacity onPress={() => setDraft(d => ({ ...d, links: d.links.filter(l => l.id !== link.id) }))} style={{ padding: 4 }}>
-                                        <X size={15} color="#e05c7a" strokeWidth={2} />
+                                        <X size={20} color="#ff4b4b" strokeWidth={2.5} />
                                     </TouchableOpacity>
                                 </View>
                             ))}
@@ -310,7 +314,7 @@ function EditModal({ visible, profile, onSave, onClose, saving }: {
 
                     {tab === 'banner' && (
                         <>
-                            <Text style={editStyles.label}>Cor do banner</Text>
+                            <Text style={editStyles.label}>COR DO BANNER</Text>
                             <View style={editStyles.colorGrid}>
                                 {BANNER_COLORS.map(c => (
                                     <TouchableOpacity
@@ -318,15 +322,9 @@ function EditModal({ visible, profile, onSave, onClose, saving }: {
                                         style={[editStyles.colorSwatch, { backgroundColor: c }, draft.bannerColor === c && editStyles.colorSwatchSelected]}
                                         onPress={() => setDraft(d => ({ ...d, bannerColor: c }))}
                                     >
-                                        {draft.bannerColor === c && <Check size={16} color="#8b5cf6" strokeWidth={2.5} />}
+                                        {draft.bannerColor === c && <Check size={20} color="#fff" strokeWidth={3} />}
                                     </TouchableOpacity>
                                 ))}
-                            </View>
-                            <Text style={editStyles.label}>Preview</Text>
-                            <View style={[editStyles.preview, { backgroundColor: draft.bannerColor }]}>
-                                <View style={editStyles.previewDots}>
-                                    {[...Array(12)].map((_,i) => <View key={i} style={editStyles.previewDot} />)}
-                                </View>
                             </View>
                         </>
                     )}
@@ -349,27 +347,17 @@ export default function ProfileScreen() {
     const [saving, setSaving]           = useState(false);
     const [loading, setLoading]         = useState(true);
     const [loadError, setLoadError]     = useState(false);
-    const [expanded, setExpanded]       = useState(false);
     const [shopVisible, setShopVisible] = useState(false);
     const [totalXp, setTotalXp]         = useState(0);
 
     const displayName   = user?.name ?? 'Dev';
-    const areaConfig    = AREA_CONFIG[studyArea];
     const badges        = computeBadges(streak, learnings.length);
     const unlockedCount = badges.filter(b => b.unlocked).length;
-    const shownLearnings = expanded ? learnings.slice(0,10) : learnings.slice(0,3);
-    const avatarLevel   = getAvatarLevel(totalXp);
-    const nextLevel     = getNextLevel(totalXp);
-    const xpToNext      = nextLevel ? nextLevel.minXp - totalXp : 0;
-    const xpProgress    = nextLevel
-        ? (totalXp - avatarLevel.minXp) / (nextLevel.minXp - avatarLevel.minXp)
-        : 1;
     const unlockedAchievements: string[] = [
         ...(learnings.length >= 1 ? ['first_learning'] : []),
         ...(streak >= 7 ? ['streak_7'] : []),
     ];
 
-    // Usa chaves baseadas no email — dados isolados por conta
     const keys = email ? getStorageKeys(email) : null;
 
     const loadData = useCallback(async () => {
@@ -425,9 +413,7 @@ export default function ProfileScreen() {
 
     const handleLogout = () => {
         if (Platform.OS === 'web') {
-            if (window.confirm('Deseja encerrar a sessão?')) {
-                signOutUser();
-            }
+            if (window.confirm('Deseja sair?')) signOutUser();
         } else {
             Alert.alert('Sair', 'Deseja encerrar a sessão?', [
                 { text: 'Cancelar', style: 'cancel' },
@@ -436,12 +422,21 @@ export default function ProfileScreen() {
         }
     };
 
+    // Parallax hook
+    const {
+        scrollHandler,
+        titleStyle,
+        subtitleStyle,
+        collapsedTitleStyle,
+        headerContainerStyle,
+        headerBgStyle,
+    } = useParallaxScroll();
+
     if (loading) {
         return (
             <SafeAreaView style={styles.container} edges={['top','left','right']}>
                 <View style={styles.loadingWrap}>
-                    <ActivityIndicator size="large" color="#8b5cf6" />
-                    <Text style={styles.loadingText}>Carregando perfil...</Text>
+                    <ActivityIndicator size="large" color="#1cb0f6" />
                 </View>
             </SafeAreaView>
         );
@@ -449,202 +444,120 @@ export default function ProfileScreen() {
 
     return (
         <SafeAreaView style={styles.container} edges={['top','left','right']}>
-            <ScrollView showsVerticalScrollIndicator={false}>
+            
+            {/* ── Header colapsável com paralaxe ── */}
+            <Animated.View style={[styles.headerContainer, headerContainerStyle]}>
+                <Animated.View style={[styles.headerBg, headerBgStyle]} />
 
-                {/* Banner */}
-                <Animated.View entering={FadeInUp.duration(500)}>
-                    <View style={[styles.banner, { backgroundColor: local.bannerColor }]}>
-                        <View style={styles.bannerPattern}>
-                            {[...Array(24)].map((_,i) => (
-                                <Animated.View key={i} entering={FadeInDown.delay(i * 25).duration(350)} style={styles.bannerDot} />
-                            ))}
-                        </View>
-                    </View>
+                {/* Expanded */}
+                <Animated.View style={[styles.headerExpanded, titleStyle]}>
+                    <Text style={styles.greeting}>Meu Perfil</Text>
                 </Animated.View>
 
-                {/* Avatar row */}
-                <View style={styles.avatarRow}>
-                    <Animated.View entering={FadeInLeft.delay(80).duration(500).springify()} style={styles.avatarWrap}>
-                        {/* Avatar evoluível por XP */}
-                        <AvatarDisplay
-                            xp={totalXp}
-                            size={86}
-                            equippedHat={local.equippedHat ?? undefined}
-                            equippedBadge={local.equippedBadge ?? undefined}
-                            equippedBackground={local.equippedBackground ?? undefined}
-                        />
-                        <View style={styles.streakBadge}>
-                            <Flame size={10} color="#fff" strokeWidth={2} />
-                            <Text style={styles.streakBadgeTxt}>{streak}</Text>
-                        </View>
-                    </Animated.View>
+                {/* Collapsed */}
+                <Animated.View style={[styles.headerCollapsed, collapsedTitleStyle]}>
+                    <Text style={styles.headerCollapsedText}>Perfil</Text>
+                </Animated.View>
 
-                    <Animated.View entering={FadeInRight.delay(80).duration(500)} style={styles.avatarActions}>
-                        {loadError && (
-                            <TouchableOpacity style={styles.iconBtn} onPress={loadData}>
-                                <RefreshCw size={15} color="#f87171" strokeWidth={2} />
+                {/* Ações (sempre visíveis no topo) */}
+                <View style={styles.headerActionsFixed}>
+                    <TouchableOpacity style={styles.actionBtn} onPress={() => setShopVisible(true)}>
+                        <ShoppingBag size={22} color="#1cb0f6" strokeWidth={2.5} />
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.actionBtn} onPress={() => setEditVisible(true)}>
+                        <Settings size={22} color="#afb6b9" strokeWidth={2.5} />
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.actionBtn} onPress={handleLogout}>
+                        <LogOut size={22} color="#ff4b4b" strokeWidth={2.5} />
+                    </TouchableOpacity>
+                </View>
+            </Animated.View>
+
+            <Animated.ScrollView 
+                onScroll={scrollHandler} 
+                scrollEventThrottle={16} 
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ paddingTop: 10, paddingBottom: 40 }}
+            >
+
+                {/* Seção Principal (Avatar + Info) */}
+                <Animated.View entering={FadeInUp.duration(500)} style={styles.profileSection}>
+                    <View style={styles.profileCard}>
+                        {/* Avatar com botão de editar */}
+                        <View style={styles.avatarContainer}>
+                            <AvatarDisplay
+                                xp={totalXp}
+                                size={130}
+                                equippedHat={local.equippedHat ?? undefined}
+                                equippedBadge={local.equippedBadge ?? undefined}
+                                equippedBackground={local.equippedBackground ?? undefined}
+                                animated
+                            />
+                            {/* Botão de editar avatar — claramente visível */}
+                            <TouchableOpacity
+                                style={styles.editAvatarBtn}
+                                onPress={() => setShopVisible(true)}
+                                activeOpacity={0.85}
+                            >
+                                <Camera size={16} color="#fff" strokeWidth={2.5} />
+                                <Text style={styles.editAvatarText}>Editar Avatar</Text>
                             </TouchableOpacity>
+                        </View>
+                        <Text style={styles.name}>{displayName}</Text>
+                        <Text style={styles.email}>{email}</Text>
+                        
+                        {local.bio ? (
+                            <Text style={styles.bio}>{local.bio}</Text>
+                        ) : null}
+
+                        {/* Links */}
+                        {local.links.length > 0 && (
+                            <View style={styles.linksWrap}>
+                                {local.links.map(link => (
+                                    <TouchableOpacity key={link.id} style={styles.linkChip} onPress={() => Linking.openURL(link.url)}>
+                                        <Link size={14} color="#1cb0f6" strokeWidth={2.5} style={{marginRight: 6}} />
+                                        <Text style={styles.linkChipText}>{link.label}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
                         )}
-                        <TouchableOpacity style={styles.iconBtn} onPress={() => setShopVisible(true)}>
-                            <ShoppingBag size={16} color="#8b5cf6" strokeWidth={2} />
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.iconBtn} onPress={() => setEditVisible(true)}>
-                            <Edit2 size={16} color="#fff" strokeWidth={2} />
-                        </TouchableOpacity>
-                        <TouchableOpacity style={[styles.iconBtn, styles.iconBtnDanger]} onPress={handleLogout}>
-                            <LogOut size={16} color="#e05c7a" strokeWidth={2} />
-                        </TouchableOpacity>
-                    </Animated.View>
-                </View>
-
-                {/* Identity */}
-                <Animated.View entering={FadeInDown.delay(120).duration(500)} style={styles.identity}>
-                    <Text style={styles.name}>{displayName}</Text>
-                    <Text style={styles.email}>{email}</Text>
-                    {local.bio
-                        ? <Text style={styles.bio}>{local.bio}</Text>
-                        : <TouchableOpacity onPress={() => setEditVisible(true)}>
-                            <Text style={styles.bioPlaceholder}>Toque para adicionar uma bio...</Text>
-                          </TouchableOpacity>
-                    }
-                    <View style={[styles.areaChip, { borderColor: areaConfig.color + '45', backgroundColor: areaConfig.bg }]}>
-                        <areaConfig.Icon size={12} color={areaConfig.color} strokeWidth={2} />
-                        <Text style={[styles.areaChipText, { color: areaConfig.color }]}>{areaConfig.label}</Text>
                     </View>
                 </Animated.View>
 
-                {/* Stat cards */}
-                <View style={styles.statsGrid}>
-                    {[
-                        { label: 'Streak',     value: streak,           Icon: Flame,    color: '#8b5cf6', suffix: 'd', delay: 140 },
-                        { label: 'XP Total',   value: totalXp,          Icon: Zap,      color: '#f59e0b', suffix: '',  delay: 200 },
-                        { label: 'Conquistas', value: unlockedCount,    Icon: Trophy,   color: '#06b6d4', suffix: '',  delay: 260 },
-                    ].map((s, i) => (
-                        <Animated.View key={i} entering={FadeInDown.delay(s.delay).duration(400).springify()} style={styles.statCard}>
-                            <s.Icon size={16} color={s.color} strokeWidth={2} style={{ marginBottom: 6 }} />
-                            <Text style={[styles.statValue, { color: s.color }]}>{s.value}{s.suffix}</Text>
-                            <Text style={styles.statLabel}>{s.label}</Text>
-                        </Animated.View>
-                    ))}
-                </View>
+                <View style={styles.divider} />
 
-                {/* Progress bars */}
+                {/* Estatísticas (Grid Duolingo) */}
+                <Animated.View entering={FadeInDown.delay(100).duration(500)} style={styles.section}>
+                    <Text style={styles.sectionTitle}>Estatísticas</Text>
+                    <View style={styles.statsGrid}>
+                        <StatCard icon={Flame} color="#ff9600" value={streak} label="Ofensiva" />
+                        <StatCard icon={Zap} color="#ffc800" value={totalXp} label="Total de XP" />
+                        <StatCard icon={BookOpen} color="#ce82ff" value={learnings.length} label="Aprendizados" />
+                        <StatCard icon={Trophy} color="#58cc02" value={unlockedCount} label="Conquistas" />
+                    </View>
+                </Animated.View>
+
+                <View style={styles.divider} />
+
+                {/* Conquistas */}
                 <Animated.View entering={FadeInDown.delay(200).duration(500)} style={styles.section}>
-                    <View style={styles.sectionHeader}>
-                        <TrendingUp size={15} color="#8b5cf6" strokeWidth={2} />
-                        <Text style={styles.sectionTitle}>Progresso</Text>
+                    <View style={styles.sectionHeaderRow}>
+                        <Text style={styles.sectionTitle}>Conquistas</Text>
+                        <Text style={styles.sectionMeta}>{unlockedCount}/{badges.length}</Text>
                     </View>
-                    <View style={styles.card}>
-                        <AnimatedBar label="Sequência"    value={streak}           max={30} color="#8b5cf6" delay={300} />
-                        <AnimatedBar label="Aprendizados" value={learnings.length} max={50} color="#06b6d4" delay={380} />
-                        <AnimatedBar label="Conquistas"   value={unlockedCount}    max={6}  color="#f59e0b" delay={460} />
+                    <View style={styles.badgesList}>
+                        {badges.map((badge, i) => (
+                            <BadgeCard key={badge.id} badge={badge} delay={220 + i * 50} />
+                        ))}
                     </View>
                 </Animated.View>
+                
+                <View style={styles.divider} />
 
                 {/* Heatmap */}
                 <ActivityHeatmap learnings={learnings} />
 
-                {/* Badges */}
-                <Animated.View entering={FadeInDown.delay(260).duration(500)} style={styles.section}>
-                    <View style={styles.sectionHeader}>
-                        <Trophy size={15} color="#8b5cf6" strokeWidth={2} />
-                        <Text style={styles.sectionTitle}>Conquistas</Text>
-                        <Text style={styles.sectionMeta}>{unlockedCount}/{badges.length}</Text>
-                    </View>
-                    <View style={styles.badgesGrid}>
-                        {badges.map((badge, i) => (
-                            <BadgeCard key={badge.id} badge={badge} delay={280 + i * 60} />
-                        ))}
-                    </View>
-                </Animated.View>
-
-                {/* Recent learnings */}
-                {learnings.length > 0 && (
-                    <Animated.View entering={FadeInDown.delay(320).duration(500)} style={styles.section}>
-                        <View style={styles.sectionHeader}>
-                            <BookOpen size={15} color="#8b5cf6" strokeWidth={2} />
-                            <Text style={styles.sectionTitle}>Últimos Aprendizados</Text>
-                            <Text style={styles.sectionMeta}>{learnings.length} total</Text>
-                        </View>
-                        <View style={styles.card}>
-                            {shownLearnings.map((item, i) => (
-                                <Animated.View
-                                    key={item.id}
-                                    entering={FadeInLeft.delay(320 + i * 45).duration(350)}
-                                    style={[styles.learnItem, i < shownLearnings.length - 1 && styles.learnItemBorder]}
-                                >
-                                    <View style={styles.learnDot} />
-                                    <View style={styles.learnContent}>
-                                        <Text style={styles.learnText}>{item.text}</Text>
-                                        <View style={styles.learnMeta}>
-                                            <Clock size={10} color="#44415a" strokeWidth={2} />
-                                            <Text style={styles.learnDate}>{formatAgo(item.date)}</Text>
-                                        </View>
-                                    </View>
-                                </Animated.View>
-                            ))}
-                            {learnings.length > 3 && (
-                                <TouchableOpacity style={styles.expandBtn} onPress={() => setExpanded(e => !e)}>
-                                    <Text style={styles.expandBtnText}>
-                                        {expanded ? 'Ver menos' : `Ver mais ${learnings.length - 3}`}
-                                    </Text>
-                                    <ChevronRight size={14} color="#8b5cf6" strokeWidth={2}
-                                        style={{ transform: [{ rotate: expanded ? '-90deg' : '90deg' }] }} />
-                                </TouchableOpacity>
-                            )}
-                        </View>
-                    </Animated.View>
-                )}
-
-                {/* Links */}
-                {local.links.length > 0 && (
-                    <Animated.View entering={FadeInDown.delay(360).duration(500)} style={styles.section}>
-                        <View style={styles.sectionHeader}>
-                            <Link size={15} color="#8b5cf6" strokeWidth={2} />
-                            <Text style={styles.sectionTitle}>Links</Text>
-                        </View>
-                        <View style={styles.linksWrap}>
-                            {local.links.map(link => (
-                                <TouchableOpacity key={link.id} style={styles.linkChip} onPress={() => Linking.openURL(link.url)}>
-                                    <Text style={styles.linkChipText}>{link.label}</Text>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-                    </Animated.View>
-                )}
-
-                {/* Streak detail */}
-                <Animated.View entering={FadeInDown.delay(390).duration(500)} style={[styles.section, { marginBottom: 48 }]}>
-                    <View style={styles.sectionHeader}>
-                        <Flame size={15} color="#8b5cf6" strokeWidth={2} />
-                        <Text style={styles.sectionTitle}>Sequência de estudos</Text>
-                    </View>
-                    <View style={[styles.card, { flexDirection: 'row', alignItems: 'center', padding: 18 }]}>
-                        <View style={styles.streakCircle}>
-                            <Text style={styles.streakNum}>{streak}</Text>
-                            <Text style={styles.streakUnit}>dias</Text>
-                        </View>
-                        <View style={styles.streakRight}>
-                            <Text style={styles.streakStatus}>
-                                {streak === 0 ? 'Nenhuma sequência ativa' :
-                                 streak < 7   ? 'Sequência iniciando' :
-                                 streak < 30  ? 'Ritmo consistente' : 'Sequência lendária'}
-                            </Text>
-                            <View style={styles.streakDots}>
-                                {[...Array(7)].map((_,i) => (
-                                    <View key={i} style={[styles.dot, i < Math.min(streak,7) && styles.dotActive]} />
-                                ))}
-                            </View>
-                            <Text style={styles.streakHint}>
-                                {streak > 0
-                                    ? `${streak} dia${streak !== 1 ? 's' : ''} consecutivo${streak !== 1 ? 's' : ''}`
-                                    : 'Registre um aprendizado para começar'}
-                            </Text>
-                        </View>
-                    </View>
-                </Animated.View>
-
-            </ScrollView>
+            </Animated.ScrollView>
 
             <EditModal
                 visible={editVisible}
@@ -676,127 +589,103 @@ export default function ProfileScreen() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-    container:   { flex: 1, backgroundColor: '#0d0d10' },
-    loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
-    loadingText: { color: '#6b6880', fontSize: 14 },
+    container:   { flex: 1, backgroundColor: '#131f24' },
+    loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+    
+    // Parallax Header
+    headerContainer:    { overflow: 'hidden', justifyContent: 'center', paddingHorizontal: 16 },
+    headerBg:           { ...StyleSheet.absoluteFillObject, backgroundColor: '#131f24' },
+    headerExpanded:     { flexDirection: 'row', alignItems: 'center', position: 'absolute', left: 16, bottom: 10 },
+    headerCollapsed:    { flexDirection: 'row', alignItems: 'center', position: 'absolute', left: 16, bottom: 14 },
+    headerCollapsedText:{ color: '#fff', fontSize: 18, fontWeight: '900', letterSpacing: 0.5 },
+    greeting:           { color: '#fff', fontSize: 24, fontWeight: '900', letterSpacing: -0.4 },
+    headerActionsFixed: { position: 'absolute', right: 16, bottom: 8, flexDirection: 'row', gap: 14, alignItems: 'center' },
+    actionBtn:          { padding: 4 },
 
-    banner:        { width: '100%', height: 130 },
-    bannerPattern: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', padding: 16, gap: 12, opacity: 0.15 },
-    bannerDot:     { width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#fff' },
+    profileSection: { paddingHorizontal: 16, marginBottom: 10 },
+    profileCard: { 
+        backgroundColor: '#16151d', 
+        borderRadius: 24, 
+        padding: 24, 
+        alignItems: 'center',
+        borderWidth: 2, 
+        borderColor: '#212b31', 
+        borderBottomWidth: 5, 
+        borderBottomColor: '#161c20' 
+    },
+    avatarContainer: { alignItems: 'center', marginBottom: 20, gap: 14 },
+    avatarWrap: { marginBottom: 16 },
+    editAvatarBtn: {
+        flexDirection: 'row', alignItems: 'center', gap: 8,
+        backgroundColor: '#1cb0f6', borderRadius: 14,
+        paddingHorizontal: 16, paddingVertical: 10,
+        borderWidth: 0, borderBottomWidth: 4, borderBottomColor: '#1899d6',
+    },
+    editAvatarText: { color: '#fff', fontSize: 13, fontWeight: '900', letterSpacing: 0.3 },
+    name: { color: '#fff', fontSize: 22, fontWeight: '900', letterSpacing: 0.5 },
+    email: { color: '#afb6b9', fontSize: 13, fontWeight: '600', marginTop: 4 },
+    bio: { color: '#fff', fontSize: 14, marginTop: 14, textAlign: 'center', lineHeight: 20 },
+    
+    linksWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center', marginTop: 16 },
+    linkChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, borderWidth: 2, borderColor: '#212b31', borderBottomWidth: 4, borderBottomColor: '#161c20' },
+    linkChipText: { color: '#1cb0f6', fontSize: 13, fontWeight: '800', textTransform: 'uppercase' },
 
-    avatarRow:      { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', paddingHorizontal: 16, marginTop: -44, marginBottom: 12 },
-    avatarWrap:     { position: 'relative' },
-    avatar:         { width: 86, height: 86, borderRadius: 43, borderWidth: 3, borderColor: '#0d0d10' },
-    avatarFallback: { width: 86, height: 86, borderRadius: 43, backgroundColor: '#8b5cf6', borderWidth: 3, borderColor: '#0d0d10', alignItems: 'center', justifyContent: 'center' },
-    avatarInitials: { color: '#fff', fontSize: 28, fontWeight: '800' },
-    streakBadge:    { position: 'absolute', bottom: 0, right: -4, backgroundColor: '#1a1826', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 3, borderWidth: 2, borderColor: '#0d0d10', flexDirection: 'row', alignItems: 'center', gap: 3 },
-    streakBadgeTxt: { fontSize: 11, fontWeight: '700', color: '#fff' },
-    avatarActions:  { flexDirection: 'row', gap: 8 },
-    iconBtn:        { backgroundColor: '#1a1826', borderRadius: 10, padding: 10, borderWidth: 1, borderColor: '#2a2040' },
-    iconBtnDanger:  { borderColor: '#3a1a24' },
+    divider: { height: 2, backgroundColor: C_BORDER, marginHorizontal: 16, marginVertical: 8 },
 
-    identity:       { paddingHorizontal: 16, marginBottom: 16 },
-    name:           { color: '#fff', fontSize: 22, fontWeight: '800', letterSpacing: -0.5 },
-    email:          { color: '#6b6880', fontSize: 13, marginTop: 2 },
-    bio:            { color: '#9aa0aa', fontSize: 14, marginTop: 8, lineHeight: 20 },
-    bioPlaceholder: { color: '#3a3460', fontSize: 13, marginTop: 8, fontStyle: 'italic' },
-    areaChip:       { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderRadius: 16, paddingHorizontal: 10, paddingVertical: 5, marginTop: 10, alignSelf: 'flex-start' },
-    areaChipText:   { fontSize: 12, fontWeight: '700' },
+    section: { paddingHorizontal: 16, paddingVertical: 14 },
+    sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+    sectionTitle: { color: '#fff', fontSize: 18, fontWeight: '900', marginBottom: 16 },
+    sectionMeta: { color: '#afb6b9', fontSize: 14, fontWeight: '800' },
+    
+    statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+    statCardWrapper: { width: '48%' },
+    statCard: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 20, borderWidth: 2, borderColor: '#212b31', borderBottomWidth: 5, borderBottomColor: '#161c20', backgroundColor: '#16151d' },
+    statIconWrap: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+    statTextWrap: { flex: 1 },
+    statValue: { color: '#fff', fontSize: 16, fontWeight: '900' },
+    statLabel: { color: '#afb6b9', fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
 
-    statsGrid: { flexDirection: 'row', paddingHorizontal: 16, gap: 10, marginBottom: 24 },
-    statCard:  { flex: 1, backgroundColor: '#16151d', borderRadius: 18, paddingVertical: 16, alignItems: 'center', borderWidth: 1, borderColor: '#2a2040' },
-    statValue: { fontSize: 22, fontWeight: '900', letterSpacing: -0.5 },
-    statLabel: { color: '#6b6880', fontSize: 11, marginTop: 3, fontWeight: '500' },
+    badgesList: { gap: 0 },
+    badgeCard: { backgroundColor: '#16151d', flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderRadius: 20, borderWidth: 2, borderColor: '#212b31', borderBottomWidth: 5, borderBottomColor: '#161c20' },
+    badgeIconWrap: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+    badgeLabel: { color: '#fff', fontSize: 16, fontWeight: '900' },
+    badgeLabelLocked: { color: '#afb6b9' },
+    badgeDesc: { color: '#afb6b9', fontSize: 13, marginTop: 2 },
+    badgeProgressContainer: { alignItems: 'center', justifyContent: 'center' },
+    badgeCompleteText: { color: '#ffc800', fontSize: 10, fontWeight: '900' },
+    badgeLock: { backgroundColor: '#212b31', width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
 
-    section:       { paddingHorizontal: 16, marginBottom: 24 },
-    sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-    sectionTitle:  { color: '#fff', fontSize: 15, fontWeight: '700', flex: 1 },
-    sectionMeta:   { color: '#44415a', fontSize: 11, fontWeight: '600' },
-    card:          { backgroundColor: '#16151d', borderRadius: 18, padding: 16, borderWidth: 1, borderColor: '#2a2040', gap: 14 },
-
-    barRow:   { flexDirection: 'row', alignItems: 'center', gap: 10 },
-    barLabel: { color: '#7a7590', fontSize: 12, width: 96 },
-    barTrack: { flex: 1, height: 6, backgroundColor: '#1a1826', borderRadius: 3, overflow: 'hidden' },
-    barFill:  { height: '100%', borderRadius: 3 },
-    barValue: { fontSize: 12, fontWeight: '700', width: 28, textAlign: 'right' },
-
-    heatmapGrid:       { flexDirection: 'row', gap: 2 },
-    heatmapCol:        { flexDirection: 'column', gap: 2 },
-    heatmapCell:       { borderRadius: 2 },
-    heatmapLegend:     { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 10, justifyContent: 'flex-end' },
-    heatmapLegendTxt:  { color: '#44415a', fontSize: 10 },
-    heatmapLegendCell: { width: 10, height: 10, borderRadius: 2 },
-
-    badgesGrid:       { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-    badgeCard:        { width: (SCREEN_W - 32 - 20) / 3, backgroundColor: '#16151d', borderRadius: 16, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: '#2a2040', shadowRadius: 10, elevation: 4 },
-    badgeIconWrap:    { width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
-    badgeLabel:       { color: '#fff', fontSize: 10, fontWeight: '700', textAlign: 'center', marginBottom: 3 },
-    badgeLabelLocked: { color: '#2a2040' },
-    badgeDesc:        { color: '#6b6880', fontSize: 9, textAlign: 'center', lineHeight: 12 },
-    badgeDot:         { width: 5, height: 5, borderRadius: 2.5, marginTop: 6 },
-
-    learnItem:       { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-    learnItemBorder: { paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: '#1e1c2e' },
-    learnDot:        { width: 6, height: 6, borderRadius: 3, backgroundColor: '#8b5cf6', marginTop: 5, flexShrink: 0 },
-    learnContent:    { flex: 1 },
-    learnText:       { color: '#d4d0e8', fontSize: 13, lineHeight: 19 },
-    learnMeta:       { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-    learnDate:       { color: '#44415a', fontSize: 10 },
-    expandBtn:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingTop: 4 },
-    expandBtnText:   { color: '#8b5cf6', fontSize: 13, fontWeight: '600' },
-
-    linksWrap:    { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-    linkChip:     { backgroundColor: '#16151d', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: '#2a2040' },
-    linkChipText: { color: '#d4d0e8', fontSize: 13, fontWeight: '600' },
-
-    streakCircle: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#8b5cf6', justifyContent: 'center', alignItems: 'center', marginRight: 16, shadowColor: '#8b5cf6', shadowOpacity: 0.4, shadowRadius: 10, elevation: 6 },
-    streakNum:    { color: '#fff', fontSize: 24, fontWeight: '900', lineHeight: 26 },
-    streakUnit:   { color: '#fff', fontSize: 11, opacity: 0.85, fontWeight: '600' },
-    streakRight:  { flex: 1 },
-    streakStatus: { color: '#fff', fontSize: 13, fontWeight: '700', marginBottom: 10 },
-    streakDots:   { flexDirection: 'row', gap: 5, marginBottom: 8 },
-    dot:          { width: 8, height: 8, borderRadius: 4, backgroundColor: '#2a2040' },
-    dotActive:    { backgroundColor: '#8b5cf6' },
-    streakHint:   { color: '#6b6880', fontSize: 12 },
+    heatmapCard: { backgroundColor: '#16151d', borderRadius: 20, borderWidth: 2, borderColor: '#212b31', padding: 16, borderBottomWidth: 5, borderBottomColor: '#161c20' },
+    sectionHeader: { marginBottom: 14 },
+    
+    heatmapGrid:       { flexDirection: 'row', gap: 4 },
+    heatmapCol:        { flexDirection: 'column', gap: 4 },
+    heatmapCell:       { borderRadius: 4 },
 });
 
 const editStyles = StyleSheet.create({
-    container:    { flex: 1, backgroundColor: '#0d0d10' },
-    header:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#2a2040' },
-    cancel:       { color: '#7a7590', fontSize: 15 },
-    title:        { color: '#fff', fontSize: 17, fontWeight: '700' },
-    saveBtn:      { flexDirection: 'row', alignItems: 'center', gap: 5 },
-    save:         { color: '#8b5cf6', fontSize: 15, fontWeight: '700' },
-    tabs:         { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#2a2040' },
-    tab:          { flex: 1, paddingVertical: 12, alignItems: 'center' },
-    tabActive:    { borderBottomWidth: 2, borderBottomColor: '#8b5cf6' },
-    tabText:      { color: '#7a7590', fontSize: 14, fontWeight: '600' },
-    tabTextActive:{ color: '#8b5cf6' },
+    container:    { flex: 1, backgroundColor: C_BG },
+    header:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 2, borderBottomColor: '#212b31' },
+    headerBtn:    { width: 80 },
+    cancel:       { color: '#1cb0f6', fontSize: 13, fontWeight: '800' },
+    title:        { color: '#fff', fontSize: 15, fontWeight: '900' },
+    save:         { color: '#1cb0f6', fontSize: 13, fontWeight: '800' },
+    tabs:         { flexDirection: 'row', borderBottomWidth: 2, borderBottomColor: '#212b31' },
+    tab:          { flex: 1, paddingVertical: 14, alignItems: 'center' },
+    tabActive:    { borderBottomWidth: 4, borderBottomColor: '#1cb0f6' },
+    tabText:      { color: '#afb6b9', fontSize: 13, fontWeight: '800', textTransform: 'uppercase' },
+    tabTextActive:{ color: '#1cb0f6' },
     body:         { padding: 16, paddingBottom: 60 },
-    label:        { color: '#7a7590', fontSize: 11, fontWeight: '600', marginBottom: 6, marginTop: 14, textTransform: 'uppercase', letterSpacing: 0.5 },
-    input:        { backgroundColor: '#1a1826', borderRadius: 12, padding: 14, color: '#fff', fontSize: 15, borderWidth: 1, borderColor: '#2a2040' },
+    label:        { color: '#afb6b9', fontSize: 12, fontWeight: '900', marginBottom: 8, marginTop: 16 },
+    input:        { backgroundColor: '#212b31', borderRadius: 16, padding: 14, color: '#fff', fontSize: 15, fontWeight: '600', borderWidth: 2, borderColor: '#37464f', borderBottomWidth: 4, borderBottomColor: '#161c20' },
 
-    // Avatar
-    avatarSection:      { alignItems: 'center', gap: 14, marginTop: 8, marginBottom: 4 },
-    avatarWrap:         { position: 'relative' },
-    avatarPreview:      { width: 96, height: 96, borderRadius: 48, borderWidth: 3, borderColor: '#2a2040' },
-    avatarPlaceholder:  { width: 96, height: 96, borderRadius: 48, backgroundColor: '#1a1826', borderWidth: 2, borderColor: '#2a2040', borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
-    avatarBtns:         { flexDirection: 'row', gap: 10 },
-    photoBtn:           { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#1a1826', borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10, borderWidth: 1, borderColor: '#2a2040' },
-    photoBtnText:       { color: '#8b5cf6', fontWeight: '700', fontSize: 13 },
-    uploadHint:         { color: '#6b6880', fontSize: 11 },
-
-    addBtn:     { backgroundColor: '#8b5cf6', borderRadius: 12, padding: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 8 },
-    addBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-    linkItem:   { backgroundColor: '#1a1826', borderRadius: 12, padding: 14, marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: '#2a2040' },
-    linkDot:    { width: 6, height: 6, borderRadius: 3, backgroundColor: '#8b5cf6', flexShrink: 0 },
-    linkLabel:  { color: '#fff', fontWeight: '600', fontSize: 14 },
-    linkUrl:    { color: '#7a7590', fontSize: 12, marginTop: 2 },
+    addBtn:     { backgroundColor: '#1cb0f6', borderRadius: 16, padding: 16, alignItems: 'center', marginTop: 16, borderBottomWidth: 5, borderBottomColor: '#1899d6' },
+    addBtnText: { color: '#fff', fontWeight: '900', fontSize: 14, letterSpacing: 1 },
+    linkItem:   { backgroundColor: '#212b31', borderRadius: 16, padding: 14, marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 2, borderColor: '#37464f', borderBottomWidth: 4, borderBottomColor: '#161c20' },
+    linkLabel:  { color: '#fff', fontWeight: '800', fontSize: 14 },
+    linkUrl:    { color: '#1cb0f6', fontSize: 12, marginTop: 2, fontWeight: '600' },
 
     colorGrid:           { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 8 },
-    colorSwatch:         { width: 52, height: 52, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'transparent' },
-    colorSwatchSelected: { borderColor: '#8b5cf6' },
-    preview:             { height: 72, borderRadius: 14, overflow: 'hidden', marginTop: 4 },
-    previewDots:         { flex: 1, flexDirection: 'row', flexWrap: 'wrap', padding: 12, gap: 10, opacity: 0.2 },
-    previewDot:          { width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#fff' },
+    colorSwatch:         { width: 56, height: 56, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 4, borderColor: 'transparent', borderBottomWidth: 6, borderBottomColor: 'rgba(0,0,0,0.3)' },
+    colorSwatchSelected: { borderColor: '#fff' },
 });

@@ -224,12 +224,38 @@ export async function saveStudyArea(
 }
 
 // ─── Ranking global ───────────────────────────────────────────────────────────
-// Backend não tem endpoint de ranking ainda — retorna lista vazia por ora.
+// Busca do backend. Retorna lista vazia se offline ou backend indisponível.
+interface ApiRankingUser {
+    id: string;
+    name: string;
+    studyArea: string;
+    streak: number;
+    learningCount: number;
+    xp: number;
+}
+
 export async function getGlobalRanking(
     currentUid: string,
-    sortBy: 'streak' | 'learnings' = 'streak',
+    sortBy: 'streak' | 'xp' | 'learnings' = 'streak',
 ): Promise<RankingUser[]> {
-    return [];
+    try {
+        const data = await api.get<ApiRankingUser[]>(
+            `/api/v1/users/ranking?sortBy=${sortBy}&limit=50`,
+        );
+        return data.map(u => ({
+            uid:          u.id,
+            name:         u.name,
+            username:     u.name,
+            streak:       u.streak,
+            learnings:    u.learningCount,
+            xp:           u.xp,
+            studyArea:    (u.studyArea as StudyArea) ?? 'fullstack',
+            isYou:        u.id === currentUid,
+        }));
+    } catch (e) {
+        console.warn('[userService] Ranking offline:', e);
+        return [];
+    }
 }
 
 // ─── Criar perfil ─────────────────────────────────────────────────────────────
