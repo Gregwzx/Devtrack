@@ -21,10 +21,12 @@ import {
 } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { signOutUser } from '../services/authService';
-import { getUserData, saveProfile, getStorageKeys } from '../services/userService';
+import { getUserData, saveProfile } from '../services/userService';
+import { kvGet, kvGetJson } from '../services/localDb';
 import { AREA_CONFIG } from '../constants/areas';
 import { formatAgo } from '../../utils/dateHelpers';
 import type { StudyArea } from '../services/ai.service';
+import type { Learning } from '../types/learning';
 import AvatarDisplay from '../components/avatar/AvatarDisplay';
 import AvatarShop from '../components/avatar/AvatarShop';
 import type { CosmeticType, CosmeticItem } from '../data/avatars';
@@ -341,7 +343,7 @@ export default function ProfileScreen() {
 
     const [local, setLocal]             = useState<LocalProfile>(DEFAULT_LOCAL);
     const [streak, setStreak]           = useState(user?.streak ?? 0);
-    const [learnings, setLearnings]     = useState<LearningItem[]>([]);
+    const [learnings, setLearnings]     = useState<Learning[]>([]);
     const [studyArea, setStudyArea]     = useState<StudyArea>((user?.studyArea as StudyArea) ?? 'fullstack');
     const [editVisible, setEditVisible] = useState(false);
     const [saving, setSaving]           = useState(false);
@@ -358,36 +360,50 @@ export default function ProfileScreen() {
         ...(streak >= 7 ? ['streak_7'] : []),
     ];
 
-    const keys = email ? getStorageKeys(email) : null;
+    // Chave do local profile (bio/links/banner) — exclusivo do ProfileScreen
+    const localProfileKey = email ? `local_profile_${email}` : null;
+    // Chave das chaves compartilhadas com useHomeData (baseadas em userId)
+    const uid = user?.id ?? '';
+    const sharedKeys = uid ? {
+        streak:    `user_${uid}_streak`,
+        learnings: `user_${uid}_learnings`,
+        area:      `user_${uid}_area`,
+        xp:        `user_${uid}_xp`,
+    } : null;
 
     const loadData = useCallback(async () => {
-        if (!keys) return;
+        if (!sharedKeys) return;
         setLoading(true); setLoadError(false);
         try {
-            const [profRaw, streakRaw, learnRaw, areaRaw, xpRaw] = await Promise.all([
-                AsyncStorage.getItem(keys.profile),
-                AsyncStorage.getItem(keys.streak),
-                AsyncStorage.getItem(keys.learnings),
-                AsyncStorage.getItem(keys.area),
-                AsyncStorage.getItem('DEVTRACK_XP_' + email),
+            // Lê perfil local (bio/links/banner) do AsyncStorage
+            if (localProfileKey) {
+                const profRaw = await AsyncStorage.getItem(localProfileKey);
+                if (profRaw) setLocal(JSON.parse(profRaw));
+            }
+
+            // Lê streak, learnings, area e XP das chaves unificadas com useHomeData (expo-sqlite)
+            const [streakData, cachedLearnings, areaRaw, xpRaw] = await Promise.all([
+                kvGetJson<{ count: number }>(sharedKeys.streak),
+                kvGetJson<Learning[]>(sharedKeys.learnings),
+                kvGet(sharedKeys.area),
+                kvGet(sharedKeys.xp),
             ]);
 
-            if (profRaw)   setLocal(JSON.parse(profRaw));
-            if (streakRaw) setStreak(JSON.parse(streakRaw).count ?? 0);
-            if (learnRaw)  setLearnings(JSON.parse(learnRaw));
-            if (areaRaw)   setStudyArea(areaRaw as StudyArea);
-            if (xpRaw)     setTotalXp(parseInt(xpRaw, 10) || 0);
+            if (streakData)       setStreak(streakData.count ?? 0);
+            if (cachedLearnings)  setLearnings(cachedLearnings);
+            if (areaRaw)          setStudyArea(areaRaw as StudyArea);
+            if (xpRaw)            setTotalXp(parseInt(xpRaw, 10) || 0);
         } catch { setLoadError(true); }
         finally  { setLoading(false); }
-    }, [user?.id, email]);
+    }, [uid, email]);
 
     useEffect(() => { loadData(); }, [loadData]);
 
     const handleSave = async (p: LocalProfile) => {
-        if (!keys) return;
+        if (!localProfileKey) return;
         setSaving(true);
         try {
-            await AsyncStorage.setItem(keys.profile, JSON.stringify(p));
+            await AsyncStorage.setItem(localProfileKey, JSON.stringify(p));
             setLocal(p);
             setEditVisible(false);
         } catch (err) {
@@ -401,14 +417,14 @@ export default function ProfileScreen() {
         const key = `equipped${item.type.charAt(0).toUpperCase() + item.type.slice(1)}` as keyof LocalProfile;
         const updated = { ...local, [key]: item.id };
         setLocal(updated);
-        if (keys) await AsyncStorage.setItem(keys.profile, JSON.stringify(updated));
+        if (localProfileKey) await AsyncStorage.setItem(localProfileKey, JSON.stringify(updated));
     };
 
     const handleUnequip = async (type: CosmeticType) => {
         const key = `equipped${type.charAt(0).toUpperCase() + type.slice(1)}` as keyof LocalProfile;
         const updated = { ...local, [key]: null };
         setLocal(updated);
-        if (keys) await AsyncStorage.setItem(keys.profile, JSON.stringify(updated));
+        if (localProfileKey) await AsyncStorage.setItem(localProfileKey, JSON.stringify(updated));
     };
 
     const handleLogout = () => {

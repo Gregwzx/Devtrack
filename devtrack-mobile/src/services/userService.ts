@@ -5,16 +5,9 @@
 import { api, saveTokens, getRefreshToken, getStoredUser, ApiError } from './api';
 import { kvGet, kvSet, kvGetJson, kvSetJson } from './localDb';
 import type { StudyArea } from './ai.service';
+import type { Learning } from '../types/learning';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-export interface Learning {
-    id: string;
-    text: string;
-    date: string; // ISO string
-    area?: string;
-    type?: string;
-    stacks?: string[];
-}
+export type { Learning };
 
 export interface SocialLink {
     id: string;

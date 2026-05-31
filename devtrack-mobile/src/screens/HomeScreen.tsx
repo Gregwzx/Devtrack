@@ -25,13 +25,12 @@ import { AREA_CONFIG } from '../constants/areas';
 import { formatHeaderDate, formatAgo } from '../../utils/dateHelpers';
 import { useParallaxScroll, useFilterTransition, PARALLAX_HEIGHT } from '../hooks/useParallaxScroll';
 import type { StudyArea } from '../services/ai.service';
+import type { Learning } from '../types/learning';
 
 const { width: SW } = Dimensions.get('window');
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-interface Learning  { id: string; text: string; date: string; }
-interface Stats     { totalHours: number; skills: number; learnings: number; }
+interface Stats { totalHours: number; skills: number; learnings: number; }
 
 function pad(n: number) { return String(n).padStart(2, '0'); }
 

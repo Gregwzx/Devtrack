@@ -13,20 +13,13 @@ import {
     kvGet, kvSet, kvGetJson, kvSetJson,
     enqueuePendingOp, getPendingOps, deletePendingOp,
 } from '../services/localDb';
-import { api } from '../services/api';
-import { saveTokens, getAccessToken, getRefreshToken, getStoredUser } from '../services/api';
+import { api, saveTokens, getAccessToken, getRefreshToken, getStoredUser } from '../services/api';
 import { todayKey, yesterdayKey } from '../../utils/dateHelpers';
 import type { StudyArea } from '../services/ai.service';
+import type { Learning } from '../types/learning';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-export interface Learning {
-    id: string;
-    text: string;
-    date: string;
-    area?: string;
-    type?: string;
-    stacks?: string[];
-}
+export type { Learning };
 
 export interface StreakData {
     count: number;
