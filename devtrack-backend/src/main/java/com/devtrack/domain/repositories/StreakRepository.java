@@ -9,7 +9,7 @@ import java.util.Optional;
 
 // acesso ao banco pra tabela streaks
 @Repository
-public interface StreakRepository extends JpaRepository<Streak, String> {
+public interface StreakRepository extends JpaRepository<Streak, Long> {
 
     // busca a streak pelo objeto User
     // retorna Optional porque pode não ter streak ainda (primeiro acesso)

@@ -64,7 +64,8 @@ public class AuthService {
         if (!jwtService.isValid(refreshToken)) {
             throw new BusinessException("Token de refresh inválido ou expirado");
         }
-        String userId = jwtService.extractUserId(refreshToken);
+        // extractUserId retorna String — converter para Long (BIGINT)
+        Long userId = Long.parseLong(jwtService.extractUserId(refreshToken));
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException("Usuário não encontrado"));
 

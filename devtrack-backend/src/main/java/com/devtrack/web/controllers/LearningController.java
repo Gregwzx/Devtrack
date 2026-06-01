@@ -37,7 +37,7 @@ public class LearningController {
             @AuthenticationPrincipal UserDetails userDetails, // usuário injetado do JWT pelo Spring
             @RequestBody @Valid CreateLearningDTO dto
     ) {
-        String userId = ((CustomUserDetails) userDetails).getId(); // pega o ID do token
+        Long userId = ((CustomUserDetails) userDetails).getId(); // pega o ID do token
         return ResponseEntity.status(201).body(registerLearning.execute(userId, dto));
     }
 
@@ -49,7 +49,7 @@ public class LearningController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
-        String userId = ((CustomUserDetails) userDetails).getId();
+        Long userId = ((CustomUserDetails) userDetails).getId();
         return ResponseEntity.ok(getUserLearnings.execute(userId, page, size));
     }
 
@@ -58,9 +58,9 @@ public class LearningController {
     @Operation(summary = "Deletar aprendizado")
     public ResponseEntity<Void> delete(
             @AuthenticationPrincipal UserDetails userDetails,
-            @PathVariable String id
+            @PathVariable Long id
     ) {
-        String userId = ((CustomUserDetails) userDetails).getId();
+        Long userId = ((CustomUserDetails) userDetails).getId();
         var learning = learningRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Aprendizado não encontrado: " + id));
 

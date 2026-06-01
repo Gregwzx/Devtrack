@@ -12,7 +12,7 @@ import java.util.List;
 public class CustomUserDetails implements UserDetails {
 
     @Getter
-    private final String id; // campo extra — Spring Security não tem isso por padrão
+    private final Long id; // BIGINT — mesmo tipo da PK da tabela app_users
     private final String email;
     private final String passwordHash;
 
@@ -34,3 +34,4 @@ public class CustomUserDetails implements UserDetails {
         return List.of(); // sem roles por enquanto
     }
 }
+

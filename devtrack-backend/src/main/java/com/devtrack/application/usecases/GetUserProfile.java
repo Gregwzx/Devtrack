@@ -14,7 +14,7 @@ public class GetUserProfile {
 
     private final UserRepository userRepository;
 
-    public UserDTO execute(String userId) {
+    public UserDTO execute(Long userId) {
         return userRepository.findById(userId)
                 .map(UserDTO::from) // converte pra DTO — sem expor a senha
                 .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado: " + userId));

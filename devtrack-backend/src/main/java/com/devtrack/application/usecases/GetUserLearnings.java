@@ -19,7 +19,7 @@ public class GetUserLearnings {
     private final LearningRepository learningRepository;
     private final UserRepository userRepository;
 
-    public Page<LearningDTO> execute(String userId, int page, int size) {
+    public Page<LearningDTO> execute(Long userId, int page, int size) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado: " + userId));
 

@@ -15,18 +15,23 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class Learning {
 
+    // BIGINT PRIMARY KEY AUTO_INCREMENT — chave numérica padrão
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private String id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     @Column(nullable = false, columnDefinition = "TEXT") // TEXT pra suportar textos longos
     private String text;
 
-    private String area;  // frontend | backend | fullstack | devops | security
-    private String type;  // concept | bug | project | reading | tip
+    @Column(length = 50)
+    private String area;  // frontend | backend | fullstack | devops | security | mobile
+
+    @Column(length = 50)
+    private String type;  // concept | bug | project | reading | tip | review
 
     // stacks guardadas como CSV — ex: "React,TypeScript,Node"
     // convertido pra List<String> no DTO na hora de retornar
+    @Column(name = "stacks_json", columnDefinition = "TEXT")
     private String stacksJson;
 
     // N:1 — vários aprendizados pra um user
@@ -36,5 +41,7 @@ public class Learning {
     private User user;
 
     @CreationTimestamp // Hibernate preenche automaticamente
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 }
+

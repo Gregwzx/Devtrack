@@ -9,7 +9,7 @@ import java.util.Optional;
 // interface de acesso ao banco pra tabela app_users
 // Spring Data gera a implementação automaticamente — sem SQL manual
 @Repository
-public interface UserRepository extends JpaRepository<User, String> {
+public interface UserRepository extends JpaRepository<User, Long> {
     // JpaRepository já vem com save(), findById(), delete(), findAll() etc.
 
     // Spring gera: SELECT * FROM app_users WHERE email = ?

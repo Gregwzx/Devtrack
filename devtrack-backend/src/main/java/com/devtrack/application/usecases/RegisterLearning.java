@@ -20,7 +20,7 @@ public class RegisterLearning {
     private final UserRepository userRepository;
     private final UpdateStreak updateStreak; // atualiza a streak depois de salvar
 
-    public LearningDTO execute(String userId, CreateLearningDTO dto) {
+    public LearningDTO execute(Long userId, CreateLearningDTO dto) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado: " + userId));
 

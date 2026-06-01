@@ -15,7 +15,7 @@ import lombok.NoArgsConstructor;
 @Schema(description = "Entrada do ranking global")
 public class RankingUserDTO {
 
-    private String id;
+    private Long id;
     private String name;
     private String studyArea;
     private int streak;

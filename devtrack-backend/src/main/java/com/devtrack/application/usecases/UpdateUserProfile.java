@@ -17,7 +17,7 @@ public class UpdateUserProfile {
 
     private final UserRepository userRepository;
 
-    public UserDTO execute(String userId, UpdateProfileDTO dto) {
+    public UserDTO execute(Long userId, UpdateProfileDTO dto) {
         var user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado: " + userId));
 
@@ -34,7 +34,7 @@ public class UpdateUserProfile {
 
     // gerencia as vidas do sistema de gamificação
     // "lose" → -1 vida (mínimo 0) | "restore" → +1 vida (máximo 5) | "refill" → 5 vidas
-    public UserDTO updateLives(String userId, String action) {
+    public UserDTO updateLives(Long userId, String action) {
         var user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado: " + userId));
 

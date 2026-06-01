@@ -19,7 +19,7 @@ import java.util.List;
 @Schema(description = "Dados de um aprendizado registrado")
 public class LearningDTO {
 
-    private String id;
+    private Long id;
     private String text;
     private String area;
     private String type;

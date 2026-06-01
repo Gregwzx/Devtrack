@@ -9,7 +9,7 @@ import org.springframework.stereotype.Repository;
 
 // acesso ao banco pra tabela learnings
 @Repository
-public interface LearningRepository extends JpaRepository<Learning, String> {
+public interface LearningRepository extends JpaRepository<Learning, Long> {
 
     // Spring deriva o SQL pelo nome do método:
     // WHERE user_id = ? ORDER BY created_at DESC

@@ -34,7 +34,7 @@ public class UserController {
     @GetMapping("/me")
     @Operation(summary = "Buscar perfil do usuário autenticado")
     public ResponseEntity<UserDTO> getMe(@AuthenticationPrincipal UserDetails userDetails) {
-        String userId = ((CustomUserDetails) userDetails).getId();
+        Long userId = ((CustomUserDetails) userDetails).getId();
         return ResponseEntity.ok(getUserProfile.execute(userId));
     }
 
@@ -45,7 +45,7 @@ public class UserController {
             @AuthenticationPrincipal UserDetails userDetails,
             @RequestBody UpdateProfileDTO dto
     ) {
-        String userId = ((CustomUserDetails) userDetails).getId();
+        Long userId = ((CustomUserDetails) userDetails).getId();
         return ResponseEntity.ok(updateUserProfile.execute(userId, dto));
     }
 
@@ -57,7 +57,7 @@ public class UserController {
             @AuthenticationPrincipal UserDetails userDetails,
             @RequestBody java.util.Map<String, String> body
     ) {
-        String userId = ((CustomUserDetails) userDetails).getId();
+        Long userId = ((CustomUserDetails) userDetails).getId();
         return ResponseEntity.ok(updateUserProfile.updateLives(userId, body.get("action")));
     }
 

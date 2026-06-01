@@ -16,13 +16,14 @@ public class JwtService {
     @Value("${jwt.secret}") // vem do application.properties
     private String secret;
 
-    private static final long ACCESS_TTL  = 15 * 60 * 1000L;           // access token: 15 minutos
+    private static final long ACCESS_TTL  = 24 * 60 * 60 * 1000L;           // access token: 24 horas
     private static final long REFRESH_TTL = 7 * 24 * 60 * 60 * 1000L; // refresh token: 7 dias
 
     // gera o access token com o userId no campo "sub" do payload
-    public String generateAccess(String userId) {
+    // userId é Long (BIGINT) mas o JWT armazena como String
+    public String generateAccess(Long userId) {
         return Jwts.builder()
-                .subject(userId)
+                .subject(userId.toString())
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + ACCESS_TTL))
                 .signWith(getKey()) // assina com HMAC-SHA256
@@ -30,9 +31,9 @@ public class JwtService {
     }
 
     // gera o refresh token — tem o campo extra "type":"refresh"
-    public String generateRefresh(String userId) {
+    public String generateRefresh(Long userId) {
         return Jwts.builder()
-                .subject(userId)
+                .subject(userId.toString())
                 .claim("type", "refresh")
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + REFRESH_TTL))

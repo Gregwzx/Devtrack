@@ -1,5 +1,6 @@
 package com.devtrack.infrastructure.security;
 
+import com.devtrack.domain.repositories.UserRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -21,7 +22,7 @@ import java.io.IOException;
 public class JwtFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
-    private final CustomUserDetailsService userDetailsService;
+    private final UserRepository userRepository; // busca direta por ID do token
 
     @Override
     protected void doFilterInternal(
@@ -50,13 +51,18 @@ public class JwtFilter extends OncePerRequestFilter {
 
         // injeta o usuário no SecurityContext se ainda não estiver autenticado
         if (userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            UserDetails userDetails = userDetailsService.loadUserByUsername(userId);
+            // converte String → Long (JWT guarda como String, banco é BIGINT)
+            UserDetails userDetails = userRepository.findById(Long.parseLong(userId))
+                    .map(CustomUserDetails::new)
+                    .orElse(null);
 
-            UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
-                    userDetails, null, userDetails.getAuthorities()
-            );
-            auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-            SecurityContextHolder.getContext().setAuthentication(auth);
+            if (userDetails != null) {
+                UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                        userDetails, null, userDetails.getAuthorities()
+                );
+                auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                SecurityContextHolder.getContext().setAuthentication(auth);
+            }
         }
 
         chain.doFilter(request, response); // passa para o próximo filtro/controller

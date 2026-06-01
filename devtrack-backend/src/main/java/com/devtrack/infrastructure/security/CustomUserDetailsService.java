@@ -9,18 +9,20 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
 // carrega o usuário do banco pra ser usado pelo Spring Security
-// chamado no login e em toda requisição autenticada pelo JwtFilter
+// chamado no login (Spring passa o email) e pelo JwtFilter (passa o userId)
 @Service
 @RequiredArgsConstructor
 public class CustomUserDetailsService implements UserDetailsService {
 
     private final UserRepository userRepository;
 
-    // o parâmetro se chama "username" mas aqui usamos o userId (UUID)
+    // IMPORTANTE: o Spring Security chama este método com o "username" que é o EMAIL.
+    // O AuthenticationManager (no login) passa dto.getEmail() aqui.
+    // O JwtFilter NÃO usa este método — ele extrai o userId do token e injeta diretamente.
     @Override
-    public UserDetails loadUserByUsername(String userId) throws UsernameNotFoundException {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new UsernameNotFoundException("Usuário não encontrado: " + userId));
+    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("Usuário não encontrado: " + email));
         return new CustomUserDetails(user); // encapsula no objeto do Spring Security
     }
 }
