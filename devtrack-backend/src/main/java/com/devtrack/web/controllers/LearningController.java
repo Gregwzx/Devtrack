@@ -2,11 +2,10 @@ package com.devtrack.web.controllers;
 
 import com.devtrack.application.dtos.CreateLearningDTO;
 import com.devtrack.application.dtos.LearningDTO;
+import com.devtrack.application.usecases.DeleteLearning;
 import com.devtrack.application.usecases.GetUserLearnings;
 import com.devtrack.application.usecases.RegisterLearning;
 import com.devtrack.infrastructure.security.CustomUserDetails;
-import com.devtrack.web.exceptions.ResourceNotFoundException;
-import com.devtrack.domain.repositories.LearningRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -28,7 +27,7 @@ public class LearningController {
 
     private final RegisterLearning registerLearning;
     private final GetUserLearnings getUserLearnings;
-    private final LearningRepository learningRepository;
+    private final DeleteLearning deleteLearning;
 
     // POST /api/v1/learnings — salva um aprendizado e atualiza a streak
     @PostMapping
@@ -61,15 +60,13 @@ public class LearningController {
             @PathVariable Long id
     ) {
         Long userId = ((CustomUserDetails) userDetails).getId();
-        var learning = learningRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Aprendizado não encontrado: " + id));
-
-        // segurança extra — verifica se quem tá deletando é o dono
-        if (!learning.getUser().getId().equals(userId)) {
-            return ResponseEntity.status(403).build(); // 403 Forbidden
+        
+        boolean success = deleteLearning.execute(userId, id);
+        
+        if (!success) {
+            return ResponseEntity.status(403).build(); // 403 Forbidden se não for o dono
         }
 
-        learningRepository.delete(learning);
         return ResponseEntity.noContent().build(); // 204 sem body
     }
 }
