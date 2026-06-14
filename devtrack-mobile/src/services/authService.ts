@@ -106,13 +106,28 @@ export function getApiError(err: unknown): string {
     if (err instanceof ApiError) {
         const msg = err.message.toLowerCase();
         if (msg.includes('já cadastrado') || msg.includes('already')) return 'Este e-mail já está cadastrado.';
-        if (msg.includes('senha') || msg.includes('password')) return 'Senha incorreta.';
-        if (msg.includes('não encontrado') || msg.includes('credencial')) return 'E-mail ou senha incorretos.';
+        if (msg.includes('senha') || msg.includes('password') || msg.includes('invalid')) return 'Senha incorreta.';
+        if (msg.includes('não encontrado') || msg.includes('credencial') || msg.includes('not found')) return 'E-mail ou senha incorretos.';
+        if (err.status === 400) return 'Dados inválidos. Verifique os campos e tente novamente.';
         if (err.status === 401) return 'E-mail ou senha incorretos.';
+        if (err.status === 403) return 'Acesso negado. Tente fazer login novamente.';
         if (err.status === 409) return 'Este e-mail já está cadastrado.';
+        if (err.status >= 500) return 'Erro no servidor. Tente novamente em instantes.';
         return err.message || 'Ocorreu um erro. Tente novamente.';
     }
-    const msg = (err as any)?.message?.toLowerCase() ?? '';
-    if (msg.includes('network') || msg.includes('fetch')) return 'Sem conexão com o servidor. Verifique se o backend está rodando.';
-    return 'Ocorreu um erro. Tente novamente.';
+    const msg = (err as any)?.message ?? '';
+    const msgLower = msg.toLowerCase();
+    // Erros de rede — o mais comum quando o IP está errado ou o backend não está rodando
+    if (
+        msgLower.includes('network request failed') ||
+        msgLower.includes('failed to fetch') ||
+        msgLower.includes('network') ||
+        msgLower.includes('fetch') ||
+        msgLower.includes('econnrefused') ||
+        msgLower.includes('timeout')
+    ) {
+        return 'Servidor indisponível. Verifique se o backend (XAMPP + Spring Boot) está rodando na mesma rede Wi-Fi.';
+    }
+    if (msgLower.includes('json')) return 'Resposta inesperada do servidor. Verifique a versão do backend.';
+    return 'Ocorreu um erro inesperado. Tente novamente.';
 }
