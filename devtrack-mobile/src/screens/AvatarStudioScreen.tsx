@@ -8,7 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
 import { signOutUser } from '../services/authService';
 import { router } from 'expo-router';
-import { Settings, Pencil, Flame, Zap, Award, Star, X, Sparkles, ShieldCheck, Trophy } from 'lucide-react-native';
+import { Settings, LogOut, Pencil, Flame, Zap, Award, Star, X, Sparkles, ShieldCheck, Trophy } from 'lucide-react-native';
 
 import { createAvatar } from '@dicebear/core';
 import { micah } from '@dicebear/collection';
@@ -247,7 +247,7 @@ export default function AvatarStudioScreen() {
                 <View style={[s.hero, { backgroundColor: bgColor, paddingTop: insets.top }]}>
                     {/* Botão de sair */}
                     <TouchableOpacity style={s.settingsBtn} onPress={handleLogout}>
-                        <Settings color="rgba(255,255,255,0.85)" size={24} />
+                        <LogOut color="rgba(255,255,255,0.85)" size={24} />
                     </TouchableOpacity>
 
                     {/* Avatar gigante */}
