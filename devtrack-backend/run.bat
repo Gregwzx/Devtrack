@@ -4,13 +4,8 @@ echo ============================================
 echo   DevTrack Backend
 echo ============================================
 
-echo Buscando IP da rede para configurar o mobile...
-for /f "tokens=*" %%i in ('powershell -Command "(Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.InterfaceAlias -notlike '*Loopback*' } | Select-Object -First 1).IPAddress"') do set LOCAL_IP=%%i
-
-if "%LOCAL_IP%"=="" (
-    echo [AVISO] Nao foi possivel detectar o IP. Usando localhost.
-    set LOCAL_IP=127.0.0.1
-)
+echo Configurando conexao totalmente OFFLINE (localhost)...
+set LOCAL_IP=127.0.0.1
 
 echo IP detectado: %LOCAL_IP%
 echo Atualizando .env.local do projeto mobile...
