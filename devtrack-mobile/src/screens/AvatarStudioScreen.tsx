@@ -81,7 +81,7 @@ function XPBar({ xp, levelColor }: { xp: number; levelColor: string }) {
 // ─── Stat Card ────────────────────────────────────────────────────────────────
 function StatCard({ icon, value, label, accent }: { icon: React.ReactNode; value: string | number; label: string; accent: string }) {
     return (
-        <View style={[sc.card, { borderColor: '#212b31', borderBottomColor: '#161c20' }]}>
+        <View style={[sc.card, { borderColor: accent + '80', borderBottomColor: accent, backgroundColor: accent + '18' }]}>
             <LinearGradient colors={[accent + '15', 'transparent']} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
             <View style={[sc.iconWrap, { backgroundColor: accent + '20' }]}>{icon}</View>
             <Text style={sc.val}>{value}</Text>
