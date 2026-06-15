@@ -91,9 +91,12 @@ function StatCard({ icon, value, label, accent }: { icon: React.ReactNode; value
 }
 
 // ─── Achievement Badge ─────────────────────────────────────────────────────────
-function AchievementBadge({ emoji, label, unlocked }: { emoji: string; label: string; unlocked: boolean }) {
+function AchievementBadge({ emoji, label, unlocked, accent }: { emoji: string; label: string; unlocked: boolean; accent: string }) {
     return (
-        <View style={[ab.wrap, !unlocked && ab.locked]}>
+        <View style={[
+            ab.wrap, 
+            !unlocked ? ab.locked : { borderColor: accent + '80', borderBottomColor: accent, backgroundColor: accent + '18' }
+        ]}>
             <Text style={[ab.emoji, !unlocked && { opacity: 0.3 }]}>{unlocked ? emoji : '🔒'}</Text>
             <Text style={[ab.lbl, !unlocked && { color: '#3a3a4a' }]}>{label}</Text>
         </View>
@@ -294,7 +297,7 @@ export default function AvatarStudioScreen() {
                     <Text style={s.sectionTitle}>Conquistas</Text>
                     <View style={s.achRow}>
                         {achievements.map((a, i) => (
-                            <AchievementBadge key={i} emoji={a.emoji} label={a.label} unlocked={a.unlocked} />
+                            <AchievementBadge key={i} emoji={a.emoji} label={a.label} unlocked={a.unlocked} accent={bgColor} />
                         ))}
                     </View>
                 </Animated.View>
