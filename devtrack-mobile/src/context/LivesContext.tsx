@@ -30,9 +30,9 @@ const LivesContext = createContext<LivesContextType>({
   isInfinite: false,
   nextRefillIn: 0,
   loseLife: () => true,
-  restoreLife: () => {},
-  activateInfinite: () => {},
-  refillAll: () => {},
+  restoreLife: () => { },
+  activateInfinite: () => { },
+  refillAll: () => { },
 });
 
 export function LivesProvider({ children }: { children: React.ReactNode }) {
@@ -44,21 +44,14 @@ export function LivesProvider({ children }: { children: React.ReactNode }) {
 
   const isInfinite = infiniteUntil > Date.now();
 
-  // Carrega estado persistido ao montar
+  // Carrega estado persistido ao montar — NÃO carrega infinito (session-only)
   useEffect(() => {
     const load = async () => {
       try {
-        const [livesRaw, infiniteRaw] = await Promise.all([
-          AsyncStorage.getItem(STORAGE_KEY),
-          AsyncStorage.getItem(INFINITE_KEY),
-        ]);
-
+        // Limpa qualquer sessão infinite travada de sessões anteriores
+        await AsyncStorage.removeItem(INFINITE_KEY);
+        const livesRaw = await AsyncStorage.getItem(STORAGE_KEY);
         const now = Date.now();
-
-        if (infiniteRaw) {
-          const until = parseInt(infiniteRaw, 10);
-          if (until > now) setInfiniteUntil(until);
-        }
 
         if (livesRaw) {
           const state: LivesState = JSON.parse(livesRaw);
@@ -145,10 +138,11 @@ export function LivesProvider({ children }: { children: React.ReactNode }) {
   }, [persist]);
 
   const activateInfinite = useCallback(async () => {
-    const until = Date.now() + 24 * 60 * 60 * 1000; // 24h
+    // Apenas session-only — não persiste no AsyncStorage
+    // (evita que a demo fique com vidas infinitas travadas por 24h)
+    const until = Date.now() + 30 * 60 * 1000; // só 30 min de demonstração
     setInfiniteUntil(until);
     setLives(MAX_LIVES);
-    await AsyncStorage.setItem(INFINITE_KEY, String(until));
     persist(MAX_LIVES, Date.now());
   }, [persist]);
 

@@ -236,14 +236,14 @@ export async function getGlobalRanking(
             `/api/v1/users/ranking?sortBy=${sortBy}&limit=50`,
         );
         return data.map(u => ({
-            uid:          u.id,
+            uid:          String(u.id),       // Long do Java → string no TS
             name:         u.name,
             username:     u.name,
-            streak:       u.streak,
-            learnings:    u.learningCount,
-            xp:           u.xp,
+            streak:       u.streak ?? 0,
+            learnings:    u.learningCount ?? 0,
+            xp:           u.xp ?? 0,
             studyArea:    (u.studyArea as StudyArea) ?? 'fullstack',
-            isYou:        u.id === currentUid,
+            isYou:        String(u.id) === String(currentUid),
         }));
     } catch (e) {
         console.warn('[userService] Ranking offline:', e);

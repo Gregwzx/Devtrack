@@ -75,30 +75,44 @@ export default function NoLivesModal({ visible, onClose, onLifeRestored }:Props)
                         ))}
                     </Animated.View>
 
-                    <Text style={s.title}>Sem vidas!</Text>
-                    <Text style={s.subtitle}>Você ficou sem vidas. Descanse ou continue agora.</Text>
+                    <Text style={s.title}>Que pena... 😢</Text>
+                    <Text style={s.subtitle}>Suas vidas acabaram por enquanto. Você pode esperar recarregar ou garantir o Premium para nunca mais parar!</Text>
 
                     {/* Timer */}
                     {nextRefillIn>0&&(
                         <View style={s.timerBadge}>
                             <Clock size={14} color="#1cb0f6" strokeWidth={2.5}/>
-                            <Text style={s.timerTxt}>Próxima vida em {fmt(nextRefillIn)}</Text>
+                            <Text style={s.timerTxt}>Recarregando em {fmt(nextRefillIn)}...</Text>
                         </View>
                     )}
 
                     <View style={s.divider}/>
+
+                    {/* Premium Prominent Button */}
+                    <TouchableOpacity style={s.premiumBtn} onPress={handlePremium} activeOpacity={0.85}>
+                        <View style={[s.adIcon,{backgroundColor:'#ffc80020'}]}>
+                            <Zap size={22} color="#ffc800" fill="#ffc800" strokeWidth={2}/>
+                        </View>
+                        <View style={{flex:1}}>
+                            <Text style={s.premiumTitle}>Assinar DevTrack Premium</Text>
+                            <Text style={s.premiumSub}>Tenha Vidas Infinitas agora!</Text>
+                        </View>
+                        <View style={s.infBadge}>
+                            <Text style={s.infBadgeTxt}>∞</Text>
+                        </View>
+                    </TouchableOpacity>
 
                     {/* Ad button / watching */}
                     {watching?(
                         <View style={s.adContainer}>
                             <View style={{flexDirection:'row',alignItems:'center',gap:10}}>
                                 <Tv2 size={20} color="#1cb0f6" strokeWidth={2.5}/>
-                                <Text style={s.adLabel}>Assistindo... {countdown}s</Text>
+                                <Text style={s.adLabel}>Assistindo anúncio... {countdown}s</Text>
                             </View>
                             <View style={s.adTrack}>
                                 <Animated.View style={[s.adBar,adBarStyle]}/>
                             </View>
-                            <Text style={s.adHint}>Não feche esta tela!</Text>
+                            <Text style={s.adHint}>Aguarde para ganhar 1 vida</Text>
                         </View>
                     ):(
                         <TouchableOpacity style={s.adBtn} onPress={startAd} activeOpacity={0.85}>
@@ -106,29 +120,15 @@ export default function NoLivesModal({ visible, onClose, onLifeRestored }:Props)
                                 <Play size={20} color="#1cb0f6" fill="#1cb0f6" strokeWidth={2}/>
                             </View>
                             <View style={{flex:1}}>
-                                <Text style={s.adBtnTitle}>Assistir anúncio</Text>
+                                <Text style={s.adBtnTitle}>Recuperar com Anúncio</Text>
                                 <Text style={s.adBtnSub}>Ganhe +1 vida grátis</Text>
                             </View>
                             <Heart size={18} color="#ff4b4b" fill="#ff4b4b" strokeWidth={2}/>
                         </TouchableOpacity>
                     )}
 
-                    {/* Premium */}
-                    <TouchableOpacity style={s.premiumBtn} onPress={handlePremium} activeOpacity={0.85}>
-                        <View style={[s.adIcon,{backgroundColor:'#ffc80020'}]}>
-                            <Zap size={20} color="#ffc800" fill="#ffc800" strokeWidth={2}/>
-                        </View>
-                        <View style={{flex:1}}>
-                            <Text style={s.premiumTitle}>Vidas infinitas — 24h</Text>
-                            <Text style={s.premiumSub}>Estude sem interrupções</Text>
-                        </View>
-                        <View style={s.infBadge}>
-                            <Text style={s.infBadgeTxt}>∞</Text>
-                        </View>
-                    </TouchableOpacity>
-
                     <TouchableOpacity style={s.closeBtn} onPress={onClose}>
-                        <Text style={s.closeBtnTxt}>Fechar — esperar recarregar</Text>
+                        <Text style={s.closeBtnTxt}>Não, prefiro esperar 30 minutos</Text>
                     </TouchableOpacity>
 
                 </Animated.View>

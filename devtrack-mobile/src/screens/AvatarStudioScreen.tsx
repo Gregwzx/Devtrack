@@ -81,9 +81,9 @@ function XPBar({ xp, levelColor }: { xp: number; levelColor: string }) {
 // ─── Stat Card ────────────────────────────────────────────────────────────────
 function StatCard({ icon, value, label, accent }: { icon: React.ReactNode; value: string | number; label: string; accent: string }) {
     return (
-        <View style={[sc.card, { borderColor: accent + '30' }]}>
-            <LinearGradient colors={[accent + '20', 'transparent']} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
-            <View style={[sc.iconWrap, { backgroundColor: accent + '25' }]}>{icon}</View>
+        <View style={[sc.card, { borderColor: '#212b31', borderBottomColor: '#161c20' }]}>
+            <LinearGradient colors={[accent + '15', 'transparent']} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+            <View style={[sc.iconWrap, { backgroundColor: accent + '20' }]}>{icon}</View>
             <Text style={sc.val}>{value}</Text>
             <Text style={sc.lbl}>{label}</Text>
         </View>
@@ -240,21 +240,21 @@ export default function AvatarStudioScreen() {
 
     return (
         <View style={s.root}>
-            {/* ── TOP HEADER com Avatar ── */}
-            <View style={[s.hero, { backgroundColor: bgColor, paddingTop: insets.top }]}>
-                {/* Botão de sair */}
-                <TouchableOpacity style={s.settingsBtn} onPress={handleLogout}>
-                    <Settings color="rgba(255,255,255,0.85)" size={24} />
-                </TouchableOpacity>
-
-                {/* Avatar gigante */}
-                <Animated.View entering={FadeIn.duration(600)} style={s.avatarWrap}>
-                    <DuoAvatar config={config} seed={seed} size={300} />
-                </Animated.View>
-            </View>
-
             {/* ── CORPO ── */}
-            <ScrollView style={s.body} showsVerticalScrollIndicator={false}>
+            <ScrollView style={s.body} showsVerticalScrollIndicator={false} bounces={false}>
+                
+                {/* ── TOP HEADER com Avatar (agora rola junto com o corpo) ── */}
+                <View style={[s.hero, { backgroundColor: bgColor, paddingTop: insets.top }]}>
+                    {/* Botão de sair */}
+                    <TouchableOpacity style={s.settingsBtn} onPress={handleLogout}>
+                        <Settings color="rgba(255,255,255,0.85)" size={24} />
+                    </TouchableOpacity>
+
+                    {/* Avatar gigante */}
+                    <Animated.View entering={FadeIn.duration(600)} style={s.avatarWrap}>
+                        <DuoAvatar config={config} seed={seed} size={300} />
+                    </Animated.View>
+                </View>
 
                 {/* Bloco de nome + botão editar */}
                 <Animated.View entering={FadeInDown.delay(100).duration(400)} style={s.nameBlock}>
@@ -263,7 +263,7 @@ export default function AvatarStudioScreen() {
                         <Text style={s.email}>{email}</Text>
                         <Text style={s.joined}>Membro desde {joinMonth}</Text>
                     </View>
-                    <TouchableOpacity style={[s.editBtn, { borderColor: bgColor + '80', backgroundColor: bgColor + '18' }]} onPress={() => setEdit(true)}>
+                    <TouchableOpacity style={[s.editBtn, { borderColor: bgColor + '80', borderBottomColor: bgColor, backgroundColor: bgColor + '18' }]} onPress={() => setEdit(true)}>
                         <Pencil size={16} color={bgColor} strokeWidth={2.5} />
                         <Text style={[s.editBtnTxt, { color: bgColor }]}>Editar</Text>
                     </TouchableOpacity>
@@ -333,39 +333,39 @@ export default function AvatarStudioScreen() {
 
 // ─── STYLES ───────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-    root:        { flex: 1, backgroundColor: '#131f24' },
+    root:        { flex: 1, backgroundColor: '#0d0d10' },
     hero:        { height: SH * 0.38, justifyContent: 'flex-end', overflow: 'hidden' },
-    settingsBtn: { position: 'absolute', top: 16, right: 16, zIndex: 10, padding: 8, backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: 20 },
+    settingsBtn: { position: 'absolute', top: 16, right: 16, zIndex: 10, padding: 8, backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 20 },
     avatarWrap:  { alignItems: 'center', bottom: -8, overflow: 'hidden' },
     body:        { flex: 1 },
     nameBlock:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingHorizontal: 20, paddingTop: 22 },
     name:        { color: '#fff', fontSize: 26, fontWeight: '900' },
-    email:       { color: '#77858f', fontSize: 13, fontWeight: '600', marginTop: 2 },
-    joined:      { color: '#fff', fontSize: 13, fontWeight: '600', marginTop: 6 },
-    editBtn:     { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, borderWidth: 1.5, marginTop: 4 },
+    email:       { color: '#6b6880', fontSize: 13, fontWeight: '600', marginTop: 2 },
+    joined:      { color: '#d4d0e8', fontSize: 13, fontWeight: '600', marginTop: 6 },
+    editBtn:     { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 16, borderWidth: 2, borderBottomWidth: 5, marginTop: 4 },
     editBtnTxt:  { fontSize: 14, fontWeight: '900' },
     section:     { paddingHorizontal: 20, paddingVertical: 6 },
-    divider:     { height: 1.5, backgroundColor: '#1e2d35', marginHorizontal: 20, marginVertical: 10 },
+    divider:     { height: 2, backgroundColor: '#2a2040', marginHorizontal: 20, marginVertical: 12 },
     sectionTitle:{ color: '#fff', fontSize: 20, fontWeight: '900', marginBottom: 14 },
     statsRow:    { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
     achRow:      { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-    nextLvlCard: { flexDirection: 'row', alignItems: 'center', gap: 16, borderWidth: 1.5, borderColor: '#1e2d35', borderRadius: 18, padding: 18, overflow: 'hidden' },
+    nextLvlCard: { flexDirection: 'row', alignItems: 'center', gap: 16, borderWidth: 2, borderColor: '#2a2040', borderBottomWidth: 5, borderBottomColor: '#0d0d10', borderRadius: 20, padding: 18, overflow: 'hidden', backgroundColor: '#16151d' },
     nextLvlName: { color: '#fff', fontSize: 17, fontWeight: '900' },
-    nextLvlDesc: { color: '#77858f', fontSize: 13, fontWeight: '600', marginTop: 3 },
+    nextLvlDesc: { color: '#6b6880', fontSize: 13, fontWeight: '600', marginTop: 3 },
 });
 
 const sc = StyleSheet.create({
-    card:    { width: (SW - 60) / 2, borderRadius: 16, borderWidth: 1.5, padding: 16, gap: 8, overflow: 'hidden', marginBottom: 2 },
+    card:    { width: (SW - 60) / 2, borderRadius: 20, borderWidth: 2, borderBottomWidth: 5, borderBottomColor: '#0d0d10', padding: 16, gap: 8, overflow: 'hidden', marginBottom: 4, backgroundColor: '#16151d' },
     iconWrap:{ width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
     val:     { color: '#fff', fontSize: 20, fontWeight: '900' },
-    lbl:     { color: '#77858f', fontSize: 13, fontWeight: '700' },
+    lbl:     { color: '#6b6880', fontSize: 13, fontWeight: '700' },
 });
 
 const ab = StyleSheet.create({
-    wrap:  { width: (SW - 64) / 3, alignItems: 'center', backgroundColor: '#1a2832', borderRadius: 16, padding: 14, gap: 6, borderWidth: 1, borderColor: '#1e2d35' },
-    locked:{ backgroundColor: '#131f24' },
+    wrap:  { width: (SW - 64) / 3, alignItems: 'center', backgroundColor: '#16151d', borderRadius: 18, padding: 14, gap: 6, borderWidth: 2, borderColor: '#2a2040', borderBottomWidth: 5, borderBottomColor: '#0d0d10', marginBottom: 4 },
+    locked:{ backgroundColor: '#0d0d10', opacity: 0.7 },
     emoji: { fontSize: 30 },
-    lbl:   { color: '#fff', fontSize: 11, fontWeight: '800', textAlign: 'center' },
+    lbl:   { color: '#d4d0e8', fontSize: 11, fontWeight: '800', textAlign: 'center' },
 });
 
 const xpb = StyleSheet.create({

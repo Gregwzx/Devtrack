@@ -8,16 +8,16 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, {
     FadeInDown, FadeInUp,
-    useSharedValue, useAnimatedStyle, useAnimatedScrollHandler,
-    withSpring, withTiming, withDelay, withSequence,
-    interpolate, Extrapolation,
+    useSharedValue, useAnimatedStyle, withSpring,
+    withTiming, withDelay, withSequence, interpolate,
+    Extrapolation,
 } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
     LogOut, Edit2, Link, Camera,
     Flame, BookOpen, Plus, X, Check, Save,
     RefreshCw, Trophy, Zap, Star, TrendingUp,
-    Calendar, Award, ChevronRight, Clock, ShoppingBag, Settings, Lock
+    Calendar, Award, ChevronRight, Clock, Sparkles, Settings, Lock
 } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { signOutUser } from '../services/authService';
@@ -31,7 +31,7 @@ import AvatarDisplay from '../components/avatar/AvatarDisplay';
 import AvatarShop from '../components/avatar/AvatarShop';
 import type { CosmeticType, CosmeticItem } from '../data/avatars';
 import { getAvatarLevel, getNextLevel, AVATAR_LEVELS } from '../data/avatars';
-
+import { useParallaxScroll } from '../hooks/useParallaxScroll';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -438,23 +438,15 @@ export default function ProfileScreen() {
         }
     };
 
-    // Scroll tracking para parallax/fade
-    const scrollY = useSharedValue(0);
-    const scrollHandler = useAnimatedScrollHandler((e) => {
-        scrollY.value = e.contentOffset.y;
-    });
-
-    // Banner: sobe com parallax e desvanece
-    const bannerAnimStyle = useAnimatedStyle(() => ({
-        transform: [{ translateY: interpolate(scrollY.value, [0, 180], [0, -60], Extrapolation.CLAMP) }],
-        opacity:   interpolate(scrollY.value, [0, 140], [1, 0], Extrapolation.CLAMP),
-    }));
-
-    // Avatar + nome: encolhe e desvanece
-    const heroAnimStyle = useAnimatedStyle(() => ({
-        opacity:   interpolate(scrollY.value, [60, 200], [1, 0], Extrapolation.CLAMP),
-        transform: [{ scale: interpolate(scrollY.value, [0, 200], [1, 0.88], Extrapolation.CLAMP) }],
-    }));
+    // Parallax hook para o header
+    const {
+        scrollHandler,
+        titleStyle,
+        subtitleStyle,
+        collapsedTitleStyle,
+        headerContainerStyle,
+        headerBgStyle,
+    } = useParallaxScroll();
 
     if (loading) {
         return (
@@ -469,12 +461,24 @@ export default function ProfileScreen() {
     return (
         <SafeAreaView style={styles.container} edges={['top','left','right']}>
 
-            {/* ── Barra de ações fixas no topo ── */}
-            <View style={styles.topBar}>
-                <Text style={styles.topBarTitle}>Meu Perfil</Text>
-                <View style={styles.topBarActions}>
+            {/* ── Header colapsável com paralaxe (mesmo do HomeScreen) ── */}
+            <Animated.View style={[styles.headerContainer, headerContainerStyle]}>
+                <Animated.View style={[styles.headerBg, headerBgStyle]} />
+
+                {/* Expanded */}
+                <Animated.View style={[styles.headerExpanded, titleStyle]}>
+                    <Text style={styles.greeting}>Meu Perfil</Text>
+                </Animated.View>
+
+                {/* Collapsed */}
+                <Animated.View style={[styles.headerCollapsed, collapsedTitleStyle]}>
+                    <Text style={styles.headerCollapsedText}>Perfil</Text>
+                </Animated.View>
+
+                {/* Ações fixas */}
+                <View style={styles.headerActionsFixed}>
                     <TouchableOpacity style={styles.actionBtn} onPress={() => setShopVisible(true)}>
-                        <ShoppingBag size={22} color="#1cb0f6" strokeWidth={2.5} />
+                        <Sparkles size={22} color="#1cb0f6" strokeWidth={2.5} />
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.actionBtn} onPress={() => setEditVisible(true)}>
                         <Settings size={22} color="#afb6b9" strokeWidth={2.5} />
@@ -483,49 +487,56 @@ export default function ProfileScreen() {
                         <LogOut size={22} color="#ff4b4b" strokeWidth={2.5} />
                     </TouchableOpacity>
                 </View>
-            </View>
+            </Animated.View>
 
             <Animated.ScrollView
                 onScroll={scrollHandler}
                 scrollEventThrottle={16}
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ paddingBottom: 48 }}
+                contentContainerStyle={styles.content}
             >
-                {/* ── Banner com parallax + fade ── */}
-                <Animated.View style={[styles.bannerWrap, bannerAnimStyle, { backgroundColor: local.bannerColor }]}>
-                    {/* Gradiente escurecido na borda inferior */}
-                    <View style={styles.bannerOverlay} />
-                </Animated.View>
-
-                {/* ── Hero: avatar + nome flutuando sobre o banner ── */}
-                <Animated.View style={[styles.heroSection, heroAnimStyle]}>
-                    <View style={styles.avatarRing}>
-                        <AvatarDisplay
-                            xp={totalXp}
-                            size={110}
-                            equippedHat={local.equippedHat ?? undefined}
-                            equippedBadge={local.equippedBadge ?? undefined}
-                            equippedBackground={local.equippedBackground ?? undefined}
-                            animated
-                        />
-                    </View>
-                    <Text style={styles.name}>{displayName}</Text>
-                    <Text style={styles.email}>{email}</Text>
-                    {local.bio ? <Text style={styles.bio}>{local.bio}</Text> : null}
-                    <TouchableOpacity style={styles.editAvatarBtn} onPress={() => setShopVisible(true)} activeOpacity={0.85}>
-                        <Camera size={15} color="#fff" strokeWidth={2.5} />
-                        <Text style={styles.editAvatarText}>Editar Avatar</Text>
-                    </TouchableOpacity>
-                    {local.links.length > 0 && (
-                        <View style={styles.linksWrap}>
-                            {local.links.map(link => (
-                                <TouchableOpacity key={link.id} style={styles.linkChip} onPress={() => Linking.openURL(link.url)}>
-                                    <Link size={13} color="#1cb0f6" strokeWidth={2.5} style={{ marginRight: 5 }} />
-                                    <Text style={styles.linkChipText}>{link.label}</Text>
-                                </TouchableOpacity>
-                            ))}
+                {/* ── Card de Perfil (Banner + Avatar + Info) ── */}
+                <Animated.View entering={FadeInUp.duration(500)} style={styles.profileCardWrap}>
+                    <View style={styles.profileCard}>
+                        {/* Banner interno do card */}
+                        <View style={[styles.bannerWrap, { backgroundColor: local.bannerColor }]}>
+                            <View style={styles.bannerOverlay} />
                         </View>
-                    )}
+
+                        {/* Avatar e Infos */}
+                        <View style={styles.heroSection}>
+                            <View style={styles.avatarRing}>
+                                <AvatarDisplay
+                                    xp={totalXp}
+                                    size={110}
+                                    equippedHat={local.equippedHat ?? undefined}
+                                    equippedBadge={local.equippedBadge ?? undefined}
+                                    equippedBackground={local.equippedBackground ?? undefined}
+                                    animated
+                                />
+                            </View>
+                            
+                            <TouchableOpacity style={styles.editAvatarBtn} onPress={() => setShopVisible(true)} activeOpacity={0.85}>
+                                <Camera size={15} color="#fff" strokeWidth={2.5} />
+                                <Text style={styles.editAvatarText}>Editar Avatar</Text>
+                            </TouchableOpacity>
+
+                            <Text style={styles.name}>{displayName}</Text>
+                            <Text style={styles.email}>{email}</Text>
+                            {local.bio ? <Text style={styles.bio}>{local.bio}</Text> : null}
+                            
+                            {local.links.length > 0 && (
+                                <View style={styles.linksWrap}>
+                                    {local.links.map(link => (
+                                        <TouchableOpacity key={link.id} style={styles.linkChip} onPress={() => Linking.openURL(link.url)}>
+                                            <Link size={13} color="#1cb0f6" strokeWidth={2.5} style={{ marginRight: 5 }} />
+                                            <Text style={styles.linkChipText}>{link.label}</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            )}
+                        </View>
+                    </View>
                 </Animated.View>
 
                 <View style={styles.divider} />
@@ -592,139 +603,124 @@ export default function ProfileScreen() {
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
-const BANNER_H = 160;
-
 const styles = StyleSheet.create({
-    container:   { flex: 1, backgroundColor: '#0d1117' },
+    container:   { flex: 1, backgroundColor: '#131f24' },
     loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
-    // ── Barra de topo fixa ──
-    topBar: {
-        flexDirection: 'row', alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 18, paddingVertical: 12,
-        backgroundColor: '#0d1117',
-        borderBottomWidth: 1, borderBottomColor: '#1e2530',
-        zIndex: 10,
-    },
-    topBarTitle:   { color: '#fff', fontSize: 20, fontWeight: '900', letterSpacing: -0.3 },
-    topBarActions: { flexDirection: 'row', gap: 16, alignItems: 'center' },
-    actionBtn:     { padding: 4 },
+    // Parallax Header
+    headerContainer:    { overflow: 'hidden', justifyContent: 'center', paddingHorizontal: 16 },
+    headerBg:           { ...StyleSheet.absoluteFillObject, backgroundColor: '#131f24' },
+    headerExpanded:     { flexDirection: 'row', alignItems: 'center', position: 'absolute', left: 16, bottom: 10 },
+    headerCollapsed:    { flexDirection: 'row', alignItems: 'center', position: 'absolute', left: 16, bottom: 14 },
+    headerCollapsedText:{ color: '#fff', fontSize: 18, fontWeight: '900', letterSpacing: 0.5 },
+    greeting:           { color: '#fff', fontSize: 24, fontWeight: '900', letterSpacing: -0.4 },
+    headerActionsFixed: { position: 'absolute', right: 16, bottom: 8, flexDirection: 'row', gap: 14, alignItems: 'center', zIndex: 10 },
+    actionBtn:          { padding: 4 },
 
-    // ── Banner com parallax ──
+    // Main Scroll Content
+    content: { paddingBottom: 48, paddingTop: 10 },
+    
+    // Profile Card (3D)
+    profileCardWrap: { paddingHorizontal: 16, marginBottom: 24 },
+    profileCard: {
+        backgroundColor: '#16151d',
+        borderRadius: 24,
+        borderWidth: 2, borderColor: '#212b31',
+        borderBottomWidth: 5, borderBottomColor: '#161c20',
+        overflow: 'hidden', // to clip the banner corners
+    },
     bannerWrap: {
-        height: BANNER_H,
+        height: 120,
         width: '100%',
-        overflow: 'hidden',
     },
     bannerOverlay: {
         ...StyleSheet.absoluteFillObject,
-        background: 'transparent',
-        // fade escuro na base
-        borderBottomWidth: 0,
-        backgroundColor: 'rgba(0,0,0,0.18)',
+        backgroundColor: 'rgba(0,0,0,0.15)',
     },
-
-    // ── Hero section (avatar + nome) ──
     heroSection: {
         alignItems: 'center',
         marginTop: -54,
         paddingHorizontal: 20,
-        paddingBottom: 20,
-        gap: 8,
+        paddingBottom: 24,
+        gap: 6,
     },
     avatarRing: {
         borderRadius: 70,
         borderWidth: 4,
-        borderColor: '#0d1117',
+        borderColor: '#16151d', // Match card background
         overflow: 'hidden',
-        shadowColor: '#000',
-        shadowOpacity: 0.5,
-        shadowRadius: 12,
-        elevation: 12,
-        marginBottom: 4,
+        marginBottom: 8,
     },
     editAvatarBtn: {
         flexDirection: 'row', alignItems: 'center', gap: 7,
         backgroundColor: '#1cb0f6', borderRadius: 14,
-        paddingHorizontal: 14, paddingVertical: 9,
-        borderBottomWidth: 4, borderBottomColor: '#1899d6',
-        marginTop: 4,
+        paddingHorizontal: 16, paddingVertical: 10,
+        borderWidth: 0, borderBottomWidth: 4, borderBottomColor: '#1899d6',
+        marginTop: -4,
+        marginBottom: 10,
     },
-    editAvatarText: { color: '#fff', fontSize: 12, fontWeight: '900' },
+    editAvatarText: { color: '#fff', fontSize: 13, fontWeight: '900' },
     name:  { color: '#fff', fontSize: 22, fontWeight: '900', letterSpacing: 0.3 },
-    email: { color: '#7a8a96', fontSize: 13, fontWeight: '600' },
-    bio:   { color: '#c9d1d9', fontSize: 14, textAlign: 'center', lineHeight: 20, paddingHorizontal: 12 },
-    linksWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginTop: 4 },
+    email: { color: '#afb6b9', fontSize: 13, fontWeight: '600' },
+    bio:   { color: '#fff', fontSize: 14, textAlign: 'center', lineHeight: 20, paddingHorizontal: 12, marginTop: 4 },
+    linksWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center', marginTop: 12 },
     linkChip: {
         flexDirection: 'row', alignItems: 'center',
-        paddingHorizontal: 12, paddingVertical: 7,
-        borderRadius: 10, borderWidth: 1, borderColor: '#1e2f3a',
-        borderBottomWidth: 3, borderBottomColor: '#111820',
-        backgroundColor: '#131f28',
+        paddingHorizontal: 14, paddingVertical: 8,
+        borderRadius: 12, borderWidth: 2, borderColor: '#212b31',
+        borderBottomWidth: 4, borderBottomColor: '#161c20',
+        backgroundColor: '#131f24',
     },
-    linkChipText: { color: '#1cb0f6', fontSize: 12, fontWeight: '800', textTransform: 'uppercase' },
+    linkChipText: { color: '#1cb0f6', fontSize: 13, fontWeight: '800', textTransform: 'uppercase' },
 
-    divider: { height: 1, backgroundColor: '#1e2530', marginHorizontal: 16, marginVertical: 6 },
+    divider: { height: 2, backgroundColor: '#212b31', marginHorizontal: 16, marginVertical: 8 },
 
     section: { paddingHorizontal: 16, paddingVertical: 14 },
     sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
-    sectionTitle: { color: '#e6edf3', fontSize: 17, fontWeight: '900', marginBottom: 14, letterSpacing: 0.2 },
-    sectionMeta: { color: '#7a8a96', fontSize: 13, fontWeight: '800' },
+    sectionTitle: { color: '#fff', fontSize: 18, fontWeight: '900', marginBottom: 14 },
+    sectionMeta: { color: '#afb6b9', fontSize: 13, fontWeight: '800' },
 
     // ── Stat cards 3D ──
     statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-    statCardWrapper: { width: '47.5%' },
+    statCardWrapper: { width: '48%' },
     statCard: {
         flexDirection: 'row', alignItems: 'center', gap: 10,
-        padding: 16, borderRadius: 18,
-        backgroundColor: '#161b22',
-        borderWidth: 1, borderColor: '#30363d',
-        borderBottomWidth: 4, borderBottomColor: '#090d11',
-        // sombra 3D
-        shadowColor: '#000',
-        shadowOpacity: 0.55,
-        shadowRadius: 8,
-        shadowOffset: { width: 0, height: 4 },
-        elevation: 8,
+        padding: 14, borderRadius: 20,
+        backgroundColor: '#16151d',
+        borderWidth: 2, borderColor: '#212b31',
+        borderBottomWidth: 5, borderBottomColor: '#161c20',
     },
     statIconWrap: {
-        width: 42, height: 42, borderRadius: 13,
+        width: 40, height: 40, borderRadius: 12,
         alignItems: 'center', justifyContent: 'center',
-        borderWidth: 1, borderColor: '#30363d',
-        borderBottomWidth: 3, borderBottomColor: '#090d11',
     },
     statTextWrap: { flex: 1 },
-    statValue: { color: '#e6edf3', fontSize: 18, fontWeight: '900' },
-    statLabel: { color: '#7a8a96', fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
+    statValue: { color: '#fff', fontSize: 16, fontWeight: '900' },
+    statLabel: { color: '#afb6b9', fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
 
     // ── Badge cards 3D ──
-    badgesList: { gap: 10 },
+    badgesList: { gap: 12 },
     badgeCard: {
-        backgroundColor: '#161b22',
+        backgroundColor: '#16151d',
         flexDirection: 'row', alignItems: 'center', gap: 14,
-        padding: 16, borderRadius: 18,
-        borderWidth: 1, borderColor: '#30363d',
-        borderBottomWidth: 4, borderBottomColor: '#090d11',
-        shadowColor: '#000', shadowOpacity: 0.45, shadowRadius: 6,
-        shadowOffset: { width: 0, height: 3 }, elevation: 6,
+        padding: 16, borderRadius: 20,
+        borderWidth: 2, borderColor: '#212b31',
+        borderBottomWidth: 5, borderBottomColor: '#161c20',
     },
-    badgeIconWrap: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
-    badgeLabel: { color: '#e6edf3', fontSize: 15, fontWeight: '900' },
-    badgeLabelLocked: { color: '#7a8a96' },
-    badgeDesc: { color: '#7a8a96', fontSize: 12, marginTop: 2 },
+    badgeIconWrap: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+    badgeLabel: { color: '#fff', fontSize: 16, fontWeight: '900' },
+    badgeLabelLocked: { color: '#afb6b9' },
+    badgeDesc: { color: '#afb6b9', fontSize: 13, marginTop: 2 },
     badgeProgressContainer: { alignItems: 'center', justifyContent: 'center' },
-    badgeCompleteText: { color: '#ffc800', fontSize: 10, fontWeight: '900', letterSpacing: 0.5 },
-    badgeLock: { backgroundColor: '#21262d', width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+    badgeCompleteText: { color: '#ffc800', fontSize: 10, fontWeight: '900' },
+    badgeLock: { backgroundColor: '#212b31', width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
 
     // ── Heatmap ──
     heatmapCard: {
-        backgroundColor: '#161b22', borderRadius: 18,
-        borderWidth: 1, borderColor: '#30363d',
-        borderBottomWidth: 4, borderBottomColor: '#090d11',
+        backgroundColor: '#16151d', borderRadius: 20,
+        borderWidth: 2, borderColor: '#212b31',
+        borderBottomWidth: 5, borderBottomColor: '#161c20',
         padding: 16,
-        shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 6,
-        shadowOffset: { width: 0, height: 3 }, elevation: 5,
     },
     sectionHeader: { marginBottom: 12 },
     heatmapGrid: { flexDirection: 'row', gap: 4 },

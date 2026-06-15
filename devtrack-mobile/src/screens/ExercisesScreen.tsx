@@ -9,7 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, {
     FadeIn, FadeInDown, FadeInUp,
     useSharedValue, useAnimatedStyle,
-    withRepeat, withSequence, withTiming, withSpring,
+    withRepeat, withSequence, withTiming,
 } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
@@ -48,8 +48,8 @@ function TrailNode({ stop, status, onPress, isLeft }: {
     return (
         <View style={[styles.nodeRow, isLeft ? styles.nodeLeft : styles.nodeRight]}>
             <Pressable
-                onPressIn={() => (scale.value = withSpring(0.93))}
-                onPressOut={() => (scale.value = withSpring(1))}
+                onPressIn={() => (scale.value = withTiming(0.94, { duration: 80 }))}
+                onPressOut={() => (scale.value = withTiming(1, { duration: 120 }))}
                 onPress={onPress}
                 disabled={status === 'locked'}
             >
@@ -90,10 +90,13 @@ function QuizModal({ exercise, visible, onClose, onCorrect, onWrong }: {
     onCorrect: (xp: number) => void;
     onWrong: () => void;
 }) {
+    const { lives, maxLives } = useLives();
     const [selected, setSelected] = useState<number | null>(null);
     const [answered, setAnswered] = useState(false);
     const shakeX = useSharedValue(0);
+    const heartShake = useSharedValue(0);
     const shakeStyle = useAnimatedStyle(() => ({ transform: [{ translateX: shakeX.value }] }));
+    const heartShakeStyle = useAnimatedStyle(() => ({ transform: [{ translateX: heartShake.value }] }));
 
     useEffect(() => { if (visible) { setSelected(null); setAnswered(false); } }, [visible]);
 
@@ -112,6 +115,10 @@ function QuizModal({ exercise, visible, onClose, onCorrect, onWrong }: {
                 withTiming(-6, { duration: 60 }), withTiming(6, { duration: 60 }),
                 withTiming(0, { duration: 60 }),
             );
+            heartShake.value = withSequence(
+                withTiming(-6, { duration: 80 }), withTiming(6, { duration: 80 }),
+                withTiming(0, { duration: 80 }),
+            );
             onWrong();
         }
     };
@@ -121,10 +128,17 @@ function QuizModal({ exercise, visible, onClose, onCorrect, onWrong }: {
     return (
         <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
             <View style={qStyles.overlay}>
-                <Animated.View entering={FadeInUp.springify()} style={qStyles.card}>
+                <Animated.View entering={FadeInUp.duration(280)} style={qStyles.card}>
 
                     <View style={qStyles.header}>
                         <Text style={qStyles.category}>{exercise.category.toUpperCase()}</Text>
+                        <Animated.View style={[{ flexDirection: 'row', gap: 4, alignItems: 'center' }, heartShakeStyle]}>
+                            {Array.from({ length: maxLives }, (_, i) => (
+                                <Text key={i} style={{ fontSize: 15, lineHeight: 20 }}>
+                                    {i < lives ? '❤️' : '🖤'}
+                                </Text>
+                            ))}
+                        </Animated.View>
                         <Text style={qStyles.xp}>+{exercise.xp} XP</Text>
                     </View>
 
@@ -157,7 +171,6 @@ function QuizModal({ exercise, visible, onClose, onCorrect, onWrong }: {
                         })}
                     </Animated.View>
 
-                    {/* Explicação pós-resposta */}
                     {answered && (
                         <Animated.View
                             entering={FadeInDown.duration(300)}
@@ -191,7 +204,7 @@ function StopModal({ stop, visible, onClose, completedIds, onSelectExercise }: {
     return (
         <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
             <View style={sStyles.overlay}>
-                <Animated.View entering={FadeInDown.springify()} style={sStyles.card}>
+                <Animated.View entering={FadeInDown.duration(260)} style={sStyles.card}>
                     <View style={[sStyles.header, { borderBottomColor: stop.color + '30' }]}>
                         <Text style={sStyles.icon}>{stop.icon}</Text>
                         <View>
@@ -306,8 +319,17 @@ export default function ExercisesScreen() {
     }, [selectedExercise, completedIds, xp, storageKey, xpKey]);
 
     const handleWrong = useCallback(() => {
-        loseLife();
-    }, [loseLife]);
+        const stillHasLife = loseLife();
+        // loseLife() retorna false quando já estava em 0 OU acabou de perder a última
+        // Verificamos ANTES: se lives era 1 (vai virar 0), mostra NoLivesModal
+        if (lives <= 1 || !stillHasLife) {
+            setTimeout(() => {
+                setQuizModalVisible(false);
+                setStopModalVisible(false);
+                setShowNoLives(true);
+            }, 1200);
+        }
+    }, [loseLife, lives]);
 
     const handleLifeRestored = () => {
         if (pendingExerciseRef.current) {
@@ -412,14 +434,14 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         paddingVertical: 14,
         borderBottomWidth: 1,
-        borderBottomColor: '#1e1c2e',
+        borderBottomColor: '#2a2040',
     },
     headerSub: { color: '#6b6880', fontSize: 12, fontWeight: '600' },
     headerTitle: { color: '#fff', fontSize: 18, fontWeight: '800' },
     trail: { alignItems: 'center', paddingTop: 20 },
     trailEnd: { alignItems: 'center', marginBottom: 16 },
     trailEndIcon: { fontSize: 36 },
-    trailEndText: { color: '#FFD700', fontSize: 14, fontWeight: '800', marginTop: 4 },
+    trailEndText: { color: '#8b5cf6', fontSize: 14, fontWeight: '800', marginTop: 4 },
     trailStart: { alignItems: 'center', marginTop: 8 },
     trailStartIcon: { fontSize: 32 },
     trailStartText: { color: '#6b6880', fontSize: 13, fontWeight: '700', marginTop: 4 },
@@ -452,7 +474,7 @@ const styles = StyleSheet.create({
 
 // ─── Quiz styles ──────────────────────────────────────────────────────────────
 const qStyles = StyleSheet.create({
-    overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'flex-end' },
+    overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.88)', justifyContent: 'flex-end' },
     card: {
         backgroundColor: '#16151d', borderTopLeftRadius: 28, borderTopRightRadius: 28,
         padding: 24, gap: 14, borderWidth: 1, borderColor: '#2a2040',
@@ -466,7 +488,7 @@ const qStyles = StyleSheet.create({
     question: { color: '#fff', fontSize: 16, fontWeight: '700', lineHeight: 22 },
     option: {
         flexDirection: 'row', alignItems: 'center', gap: 12,
-        backgroundColor: '#1e1c2e', borderRadius: 14, padding: 14,
+        backgroundColor: '#0d0d10', borderRadius: 14, padding: 14,
         borderWidth: 1, borderColor: '#2a2040',
     },
     optCorrect: { backgroundColor: '#10b98120', borderColor: '#10b981' },
@@ -488,13 +510,14 @@ const qStyles = StyleSheet.create({
     expText: { fontSize: 13, lineHeight: 19, flex: 1 },
     closeBtn: {
         backgroundColor: '#8b5cf6', borderRadius: 16, padding: 16, alignItems: 'center',
+        borderBottomWidth: 4, borderBottomColor: '#6d28d9',
     },
     closeBtnText: { color: '#fff', fontSize: 15, fontWeight: '800' },
 });
 
 // ─── Stop modal styles ────────────────────────────────────────────────────────
 const sStyles = StyleSheet.create({
-    overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'flex-end' },
+    overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'flex-end' },
     card: {
         backgroundColor: '#16151d', borderTopLeftRadius: 28, borderTopRightRadius: 28,
         padding: 24, gap: 16, borderWidth: 1, borderColor: '#2a2040',
@@ -505,13 +528,13 @@ const sStyles = StyleSheet.create({
     },
     icon: { fontSize: 28 },
     title: { color: '#fff', fontSize: 17, fontWeight: '800' },
-    sub: { color: '#7a7590', fontSize: 13 },
+    sub: { color: '#6b6880', fontSize: 13 },
     xpBadge: { marginLeft: 'auto', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1 },
     xpText: { fontSize: 13, fontWeight: '800' },
     exerciseRow: {
         flexDirection: 'row', alignItems: 'center', gap: 14,
         padding: 14, borderRadius: 16,
-        backgroundColor: '#1e1c2e', borderWidth: 1, borderColor: '#2a2040',
+        backgroundColor: '#0d0d10', borderWidth: 1, borderColor: '#2a2040',
     },
     exerciseRowDone: { opacity: 0.6 },
     exNum: {
@@ -523,7 +546,7 @@ const sStyles = StyleSheet.create({
     exDesc: { color: '#6b6880', fontSize: 12, marginTop: 2 },
     exXp: { fontSize: 13, fontWeight: '700' },
     closeBtn: {
-        backgroundColor: '#1e1c2e', borderRadius: 16, padding: 14, alignItems: 'center',
+        backgroundColor: '#16151d', borderRadius: 16, padding: 14, alignItems: 'center',
         borderWidth: 1, borderColor: '#2a2040',
     },
     closeBtnText: { color: '#6b6880', fontSize: 14, fontWeight: '600' },
