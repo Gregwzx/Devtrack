@@ -8,7 +8,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
 import { signOutUser } from '../services/authService';
 import { router } from 'expo-router';
-import { Settings, LogOut, Pencil, Flame, Zap, Award, Star, X, Sparkles, ShieldCheck, Trophy } from 'lucide-react-native';
+import { Settings, LogOut, Pencil, Flame, Zap, Award, Star, X, Sparkles, ShieldCheck, Trophy, Crown } from 'lucide-react-native';
+import { usePlan } from '../context/PlanContext';
 
 import { createAvatar } from '@dicebear/core';
 import { micah } from '@dicebear/collection';
@@ -123,9 +124,9 @@ const OPTIONS_MAP: Record<TabKey, AvatarOption[]> = {
 };
 
 // ─── Editor Modal ─────────────────────────────────────────────────────────────
-function EditorModal({ visible, onClose, config, seed, xp, onSelect }: {
+function EditorModal({ visible, onClose, config, seed, xp, isPro, onSelect }: {
     visible: boolean; onClose: () => void; config: DiceBearConfig;
-    seed: string; xp: number; onSelect: (k: keyof DiceBearConfig, v: string) => void;
+    seed: string; xp: number; isPro: boolean; onSelect: (k: keyof DiceBearConfig, v: string) => void;
 }) {
     const [activeTab, setActiveTab] = useState<TabKey>('hair');
     const opts     = OPTIONS_MAP[activeTab];
@@ -162,7 +163,8 @@ function EditorModal({ visible, onClose, config, seed, xp, onSelect }: {
                 {/* Grid */}
                 <ScrollView contentContainerStyle={ed.grid}>
                     {opts.map((opt) => {
-                        const unlocked = xp >= (opt.xpRequired ?? 0);
+                        // Pro desbloqueia tudo; caso contrário usa xpRequired
+                        const unlocked = isPro || xp >= (opt.xpRequired ?? 0);
                         const selected = config[activeTab as keyof DiceBearConfig] === opt.id;
                         return (
                             <TouchableOpacity
@@ -181,7 +183,11 @@ function EditorModal({ visible, onClose, config, seed, xp, onSelect }: {
                                 <Text style={ed.optLbl} numberOfLines={1}>{opt.label}</Text>
                                 {!unlocked && (
                                     <View style={ed.xpPill}>
-                                        <Sparkles size={9} color="#8b5cf6" />
+                                        {isPro ? (
+                                            <Crown size={9} color="#f59e0b" />
+                                        ) : (
+                                            <Sparkles size={9} color="#8b5cf6" />
+                                        )}
                                         <Text style={ed.xpPillTxt}>{opt.xpRequired} XP</Text>
                                     </View>
                                 )}
@@ -197,6 +203,7 @@ function EditorModal({ visible, onClose, config, seed, xp, onSelect }: {
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function AvatarStudioScreen() {
     const { user }  = useAuth();
+    const { isPro } = usePlan();
     const insets    = useSafeAreaInsets();
     const email     = user?.email ?? 'guest';
     const seed      = user?.name ?? email;
@@ -253,7 +260,15 @@ export default function AvatarStudioScreen() {
                         <LogOut color="rgba(255,255,255,0.85)" size={24} />
                     </TouchableOpacity>
 
-                    {/* Avatar gigante */}
+                    {/* Badge Pro */}
+                    {isPro && (
+                        <View style={s.proBadge}>
+                            <Crown size={11} color="#f59e0b" strokeWidth={2.5} />
+                            <Text style={s.proBadgeTxt}>PRO</Text>
+                        </View>
+                    )}
+
+                    {/* Avatar gigante */}}
                     <Animated.View entering={FadeIn.duration(600)} style={s.avatarWrap}>
                         <DuoAvatar config={config} seed={seed} size={300} />
                     </Animated.View>
@@ -271,6 +286,20 @@ export default function AvatarStudioScreen() {
                         <Text style={[s.editBtnTxt, { color: bgColor }]}>Editar</Text>
                     </TouchableOpacity>
                 </Animated.View>
+
+                {/* Botão de planos */}
+                {!isPro && (
+                    <Animated.View entering={FadeInDown.delay(120).duration(400)} style={{ paddingHorizontal: 20, marginBottom: 4 }}>
+                        <TouchableOpacity
+                            style={s.upgradeBtn}
+                            onPress={() => router.push('/(tabs)/plans')}
+                            activeOpacity={0.85}
+                        >
+                            <Crown size={16} color="#f59e0b" strokeWidth={2.5} />
+                            <Text style={s.upgradeBtnTxt}>Assinar DevTrack Pro — Vidas ♾️ + Avatar completo</Text>
+                        </TouchableOpacity>
+                    </Animated.View>
+                )}
 
                 {/* XP Bar */}
                 <Animated.View entering={FadeInDown.delay(150).duration(400)} style={s.section}>
@@ -328,6 +357,7 @@ export default function AvatarStudioScreen() {
                 config={config}
                 seed={seed}
                 xp={xp}
+                isPro={isPro}
                 onSelect={handleSelect}
             />
         </View>
@@ -339,6 +369,10 @@ const s = StyleSheet.create({
     root:        { flex: 1, backgroundColor: '#0d0d10' },
     hero:        { height: SH * 0.38, justifyContent: 'flex-end', overflow: 'hidden' },
     settingsBtn: { position: 'absolute', top: 16, right: 16, zIndex: 10, padding: 8, backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 20 },
+    proBadge:    { position: 'absolute', top: 16, left: 16, zIndex: 10, flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#f59e0b25', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: '#f59e0b60' },
+    proBadgeTxt: { color: '#f59e0b', fontSize: 11, fontWeight: '900', letterSpacing: 0.5 },
+    upgradeBtn:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 13, borderRadius: 16, backgroundColor: '#f59e0b18', borderWidth: 1.5, borderColor: '#f59e0b60', borderBottomWidth: 4, borderBottomColor: '#b45309' },
+    upgradeBtnTxt:{ color: '#f59e0b', fontSize: 13, fontWeight: '900', flex: 1, textAlign: 'center' },
     avatarWrap:  { alignItems: 'center', bottom: -8, overflow: 'hidden' },
     body:        { flex: 1 },
     nameBlock:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingHorizontal: 20, paddingTop: 22 },

@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, interpolate } from 'react-native-reanimated';
 import { Code2, Compass, Trophy, User } from 'lucide-react-native';
 import { LivesProvider } from '../../src/context/LivesContext';
+import { PlanProvider } from '../../src/context/PlanContext';
 
 const ACCENT = '#8b5cf6';
 const { width: SW } = Dimensions.get('window');
@@ -46,30 +47,33 @@ export default function TabsLayout() {
     const TAB_HEIGHT = isNarrow ? 58 : 64;
 
     return (
-        <LivesProvider>
-            <Tabs
-                screenOptions={{
-                    headerShown: false,
-                    animation: 'shift',
-                    tabBarStyle: {
-                        position: 'absolute', bottom: 0, left: 0, right: 0,
-                        height: TAB_HEIGHT + insets.bottom,
-                        paddingBottom: insets.bottom,
-                        backgroundColor: '#0d0b14',
-                        borderTopWidth: 2, borderTopColor: '#1e1a2e',
-                        elevation: 24, shadowColor: '#000',
-                        shadowOpacity: 0.6, shadowRadius: 20,
-                        shadowOffset: { width: 0, height: -4 },
-                    },
-                    tabBarShowLabel: false,
-                }}
-            >
-                <Tabs.Screen name="index"      options={{ tabBarIcon: ({ focused }) => <TabButton focused={focused} Icon={Code2}   label="DevTrack" /> }} />
-                <Tabs.Screen name="TrailSelect" options={{ tabBarIcon: ({ focused }) => <TabButton focused={focused} Icon={Compass} label="Trilhas"  /> }} />
-                <Tabs.Screen name="ranking"     options={{ tabBarIcon: ({ focused }) => <TabButton focused={focused} Icon={Trophy}  label="Ranking"  /> }} />
-                <Tabs.Screen name="profile"     options={{ tabBarIcon: ({ focused }) => <TabButton focused={focused} Icon={User}    label="Perfil"   /> }} />
-            </Tabs>
-        </LivesProvider>
+        <PlanProvider>
+            <LivesProvider>
+                <Tabs
+                    screenOptions={{
+                        headerShown: false,
+                        animation: 'shift',
+                        tabBarStyle: {
+                            position: 'absolute', bottom: 0, left: 0, right: 0,
+                            height: TAB_HEIGHT + insets.bottom,
+                            paddingBottom: insets.bottom,
+                            backgroundColor: '#0d0b14',
+                            borderTopWidth: 2, borderTopColor: '#1e1a2e',
+                            elevation: 24, shadowColor: '#000',
+                            shadowOpacity: 0.6, shadowRadius: 20,
+                            shadowOffset: { width: 0, height: -4 },
+                        },
+                        tabBarShowLabel: false,
+                    }}
+                >
+                    <Tabs.Screen name="index"      options={{ tabBarIcon: ({ focused }) => <TabButton focused={focused} Icon={Code2}   label="DevTrack" /> }} />
+                    <Tabs.Screen name="TrailSelect" options={{ tabBarIcon: ({ focused }) => <TabButton focused={focused} Icon={Compass} label="Trilhas"  /> }} />
+                    <Tabs.Screen name="ranking"     options={{ tabBarIcon: ({ focused }) => <TabButton focused={focused} Icon={Trophy}  label="Ranking"  /> }} />
+                    <Tabs.Screen name="profile"     options={{ tabBarIcon: ({ focused }) => <TabButton focused={focused} Icon={User}    label="Perfil"   /> }} />
+                    <Tabs.Screen name="plans"       options={{ href: null }} />
+                </Tabs>
+            </LivesProvider>
+        </PlanProvider>
     );
 }
 
