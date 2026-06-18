@@ -283,12 +283,13 @@ export default function ExercisesScreen() {
     );
 
     const getStopStatus = (stop: TrailStop, idx: number): StopStatus => {
-        const allDone = stop.exerciseIds.every(id => completedIds.has(id));
-        if (allDone) return 'completed';
+        // Agora basta acertar 1 exercício para a parada ser considerada concluída
+        const isDone = stop.exerciseIds.some(id => completedIds.has(id));
+        if (isDone) return 'completed';
         if (idx === 0) return 'active';
-        // Desbloqueada se a parada anterior está concluída
+        // Desbloqueada se a parada anterior está concluída (acertou pelo menos 1)
         const prevStop = trail.stops[idx - 1];
-        const prevDone = prevStop.exerciseIds.every(id => completedIds.has(id));
+        const prevDone = prevStop.exerciseIds.some(id => completedIds.has(id));
         if (prevDone) return 'active';
         return 'locked';
     };
@@ -415,9 +416,9 @@ export default function ExercisesScreen() {
                 onClose={() => { 
                     setQuizModalVisible(false); 
                     if (selectedStop) {
-                        // Verifica se após fechar, todos os exercícios dessa parada já foram concluídos
-                        const allDone = selectedStop.exerciseIds.every(id => completedIds.has(id));
-                        if (!allDone) {
+                        // Verifica se após fechar, acertou pelo menos 1 exercício para passar de fase
+                        const isDone = selectedStop.exerciseIds.some(id => completedIds.has(id));
+                        if (!isDone) {
                             setTimeout(() => setStopModalVisible(true), 350);
                         } else {
                             setSelectedStop(null); // Passou de fase!

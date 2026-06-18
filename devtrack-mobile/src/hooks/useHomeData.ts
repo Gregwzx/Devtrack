@@ -9,6 +9,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNetworkStatus } from './useNetworkStatus';
+import { useFocusEffect } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
     kvGet, kvSet, kvGetJson, kvSetJson,
     enqueuePendingOp, getPendingOps, deletePendingOp,
@@ -70,9 +72,11 @@ export function useHomeData() {
         streak:    cacheKey(uid, 'streak'),
         learnings: cacheKey(uid, 'learnings'),
         area:      cacheKey(uid, 'area'),
-        xp:        cacheKey(uid, 'xp'),
         session:   cacheKey(uid, 'session_start'),
     } : null;
+
+    const email = user?.email ?? '';
+    const xpKey = email ? `DEVTRACK_XP_${email}` : null;
 
     // ── Carrega cache SQLite imediatamente (síncrono) ─────────────────────────
     async function loadFromCache() {
@@ -87,8 +91,10 @@ export function useHomeData() {
         const area = await kvGet(keys.area) as StudyArea | null;
         if (area) setStudyArea(area);
 
-        const cachedXp = await kvGet(keys.xp);
-        if (cachedXp) setXp(Number(cachedXp));
+        if (xpKey) {
+            const cachedXp = await AsyncStorage.getItem(xpKey);
+            if (cachedXp) setXp(Number(cachedXp));
+        }
 
         // horas de sessão
         const sessionStart = await kvGet(keys.session);
@@ -213,10 +219,12 @@ export function useHomeData() {
         setLearnings(updated);
         await kvSetJson(keys.learnings, updated);
 
-        // XP local
+        // XP local (Sincronizado com Gamificação)
         const newXp = xp + 10;
         setXp(newXp);
-        await kvSet(keys.xp, String(newXp));
+        if (xpKey) {
+            await AsyncStorage.setItem(xpKey, String(newXp));
+        }
 
         if (meta?.area) {
             const areaMap: Record<string, StudyArea> = {
@@ -279,16 +287,18 @@ export function useHomeData() {
 
     // ── Effects ────────────────────────────────────────────────────────────────
 
-    // 1. Ao montar: lê cache local imediatamente, depois busca da API
-    useEffect(() => {
-        if (!uid) return;
-        loadFromCache().then(() => {
-            checkLocalStreak();
-            if (isOnline) {
-                syncFromApi();
-            }
-        });
-    }, [uid]); // eslint-disable-line react-hooks/exhaustive-deps
+    // 1. Ao focar na tela: recarrega cache local imediatamente
+    useFocusEffect(
+        useCallback(() => {
+            if (!uid) return;
+            loadFromCache().then(() => {
+                checkLocalStreak();
+                if (isOnline) {
+                    syncFromApi();
+                }
+            });
+        }, [uid, isOnline])
+    );
 
     // 2. Ao reconectar: sincroniza operações pendentes
     useEffect(() => {

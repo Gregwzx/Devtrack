@@ -1,11 +1,11 @@
 // src/screens/TrailSelectScreen.tsx — Layout premium com header rico e cards melhorados
-import React, { useEffect, useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
     View, Text, StyleSheet, ScrollView,
     TouchableOpacity, Dimensions, Pressable
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import Animated, {
     FadeIn, FadeInDown, FadeInLeft, FadeInUp,
     useSharedValue, useAnimatedStyle, withSpring, withTiming,
@@ -137,21 +137,23 @@ export default function TrailSelectScreen() {
     const totalCompleted = Object.values(progressMap).reduce((a, b) => a + b, 0);
     const totalStops = TRAILS.reduce((a, t) => a + t.stops.length, 0);
 
-    useEffect(() => {
-        const load = async () => {
-            const map: Record<string, number> = {};
-            for (const trail of TRAILS) {
-                const raw = await AsyncStorage.getItem(STORAGE_KEY_PREFIX + email);
-                const completed: string[] = raw ? JSON.parse(raw) : [];
-                const done = trail.stops.filter(s =>
-                    s.exerciseIds.every(id => completed.includes(id))
-                ).length;
-                map[trail.area] = done;
-            }
-            setProgressMap(map);
-        };
-        load();
-    }, [email]);
+    useFocusEffect(
+        useCallback(() => {
+            const load = async () => {
+                const map: Record<string, number> = {};
+                for (const trail of TRAILS) {
+                    const raw = await AsyncStorage.getItem(STORAGE_KEY_PREFIX + email);
+                    const completed: string[] = raw ? JSON.parse(raw) : [];
+                    const done = trail.stops.filter(s =>
+                        s.exerciseIds.some(id => completed.includes(id))
+                    ).length;
+                    map[trail.area] = done;
+                }
+                setProgressMap(map);
+            };
+            load();
+        }, [email])
+    );
 
     // Trilha destaque (a do usuário) vem primeiro
     const sortedTrails = [...TRAILS].sort((a, b) => {
