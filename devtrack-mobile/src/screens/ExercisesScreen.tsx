@@ -12,6 +12,7 @@ import Animated, {
     withRepeat, withSequence, withTiming,
 } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
 import { useLives } from '../context/LivesContext';
 import LivesBar from '../components/common/LivesBar';
@@ -266,18 +267,20 @@ export default function ExercisesScreen() {
     const [quizModalVisible, setQuizModalVisible] = useState(false);
     const pendingExerciseRef = useRef<Exercise | null>(null);
 
-    // Carrega progresso salvo
-    useEffect(() => {
-        const load = async () => {
-            const [compRaw, xpRaw] = await Promise.all([
-                AsyncStorage.getItem(storageKey),
-                AsyncStorage.getItem(xpKey),
-            ]);
-            if (compRaw) setCompletedIds(new Set(JSON.parse(compRaw)));
-            if (xpRaw) setXp(parseInt(xpRaw, 10) || 0);
-        };
-        load();
-    }, [storageKey, xpKey]);
+    // Carrega progresso salvo sempre que a tela ganha foco
+    useFocusEffect(
+        useCallback(() => {
+            const load = async () => {
+                const [compRaw, xpRaw] = await Promise.all([
+                    AsyncStorage.getItem(storageKey),
+                    AsyncStorage.getItem(xpKey),
+                ]);
+                if (compRaw) setCompletedIds(new Set(JSON.parse(compRaw)));
+                if (xpRaw) setXp(parseInt(xpRaw, 10) || 0);
+            };
+            load();
+        }, [storageKey, xpKey])
+    );
 
     const getStopStatus = (stop: TrailStop, idx: number): StopStatus => {
         const allDone = stop.exerciseIds.every(id => completedIds.has(id));
@@ -409,7 +412,18 @@ export default function ExercisesScreen() {
             <QuizModal
                 exercise={selectedExercise}
                 visible={quizModalVisible}
-                onClose={() => { setQuizModalVisible(false); setStopModalVisible(true); }}
+                onClose={() => { 
+                    setQuizModalVisible(false); 
+                    if (selectedStop) {
+                        // Verifica se após fechar, todos os exercícios dessa parada já foram concluídos
+                        const allDone = selectedStop.exerciseIds.every(id => completedIds.has(id));
+                        if (!allDone) {
+                            setTimeout(() => setStopModalVisible(true), 350);
+                        } else {
+                            setSelectedStop(null); // Passou de fase!
+                        }
+                    }
+                }}
                 onCorrect={handleCorrect}
                 onWrong={handleWrong}
             />

@@ -1,5 +1,5 @@
 // src/screens/AvatarStudioScreen.tsx — Perfil Premium v3 (Estilo Duolingo+)
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Modal } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeInDown, useSharedValue, useAnimatedStyle, withSpring, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
@@ -7,7 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
 import { signOutUser } from '../services/authService';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Settings, LogOut, Pencil, Flame, Zap, Award, Star, X, Sparkles, ShieldCheck, Trophy, Crown } from 'lucide-react-native';
 import { usePlan } from '../context/PlanContext';
 
@@ -55,7 +55,11 @@ function XPBar({ xp, levelColor }: { xp: number; levelColor: string }) {
     const pct   = next ? Math.min(((xp - level.minXp) / (next.minXp - level.minXp)) * 100, 100) : 100;
     const width = useSharedValue(0);
 
-    useEffect(() => { width.value = withTiming(pct, { duration: 1200 }); }, [xp]);
+    useFocusEffect(
+        useCallback(() => {
+            width.value = withTiming(pct, { duration: 1200 });
+        }, [xp])
+    );
     const barStyle = useAnimatedStyle(() => ({ width: `${width.value}%` as any }));
 
     return (
@@ -213,18 +217,20 @@ export default function AvatarStudioScreen() {
     const [streak, setStreak]   = useState(0);
     const [editorOpen, setEdit] = useState(false);
 
-    useEffect(() => {
-        (async () => {
-            const [cfgR, xpR, strR] = await Promise.all([
-                AsyncStorage.getItem(DICEBEAR_STORAGE_KEY(email)),
-                AsyncStorage.getItem(XP_KEY(email)),
-                AsyncStorage.getItem(STREAK_KEY(email)),
-            ]);
-            if (cfgR) setConfig({ ...DEFAULT_CONFIG, ...JSON.parse(cfgR) });
-            if (xpR)  setXp(parseInt(xpR, 10) || 0);
-            if (strR) setStreak(JSON.parse(strR)?.count ?? 0);
-        })();
-    }, [email]);
+    useFocusEffect(
+        useCallback(() => {
+            (async () => {
+                const [cfgR, xpR, strR] = await Promise.all([
+                    AsyncStorage.getItem(DICEBEAR_STORAGE_KEY(email)),
+                    AsyncStorage.getItem(XP_KEY(email)),
+                    AsyncStorage.getItem(STREAK_KEY(email)),
+                ]);
+                if (cfgR) setConfig({ ...DEFAULT_CONFIG, ...JSON.parse(cfgR) });
+                if (xpR)  setXp(parseInt(xpR, 10) || 0);
+                if (strR) setStreak(JSON.parse(strR)?.count ?? 0);
+            })();
+        }, [email])
+    );
 
     const handleSelect = useCallback(async (key: keyof DiceBearConfig, value: string) => {
         const nc = { ...config, [key]: value };
