@@ -319,17 +319,17 @@ export default function ExercisesScreen() {
     }, [selectedExercise, completedIds, xp, storageKey, xpKey]);
 
     const handleWrong = useCallback(() => {
-        const stillHasLife = loseLife();
-        // loseLife() retorna false quando já estava em 0 OU acabou de perder a última
-        // Verificamos ANTES: se lives era 1 (vai virar 0), mostra NoLivesModal
-        if (lives <= 1 || !stillHasLife) {
+        // loseLife() lê o valor fresco via ref — retorna true se ainda tem vida, false se zerou
+        const stillAlive = loseLife();
+        if (!stillAlive) {
+            // Pequeno delay para o usuário ver o coração ficando preto antes do modal aparecer
             setTimeout(() => {
                 setQuizModalVisible(false);
                 setStopModalVisible(false);
                 setShowNoLives(true);
-            }, 1200);
+            }, 800);
         }
-    }, [loseLife, lives]);
+    }, [loseLife]);
 
     const handleLifeRestored = () => {
         if (pendingExerciseRef.current) {
