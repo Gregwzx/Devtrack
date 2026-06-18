@@ -126,7 +126,7 @@ export function getApiError(err: unknown): string {
         msgLower.includes('econnrefused') ||
         msgLower.includes('timeout')
     ) {
-        return 'Servidor indisponível. Verifique se o backend (XAMPP + Spring Boot) está rodando na mesma rede Wi-Fi.';
+        return 'Servidor indisponível. Verifique sua conexão e tente novamente.';
     }
     if (msgLower.includes('json')) return 'Resposta inesperada do servidor. Verifique a versão do backend.';
     return 'Ocorreu um erro inesperado. Tente novamente.';

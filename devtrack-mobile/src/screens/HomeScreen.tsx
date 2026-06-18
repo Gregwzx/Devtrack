@@ -15,7 +15,7 @@ import Animated, {
 import Svg, { Circle } from 'react-native-svg';
 import {
     Flame, BarChart2, Brain, Plus, BookOpen,
-    Trash2, Clock, Star, Play, Pause, RotateCcw,
+    Trash2, Clock, Star, Play, Pause, RotateCcw, SkipForward,
     Coffee, CheckCircle, Target, Zap, TrendingUp,
 } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
@@ -192,7 +192,9 @@ function PomodoroTimer() {
                         </Animated.View>
                     </Pressable>
 
-                    <View style={pm.sideBtn} />
+                    <TouchableOpacity style={pm.sideBtn} onPress={() => switchMode(modeIdx === 0 ? 1 : 0)} activeOpacity={0.8}>
+                        <SkipForward size={20} color="#afb6b9" strokeWidth={2.5} />
+                    </TouchableOpacity>
                 </View>
             </View>
 
